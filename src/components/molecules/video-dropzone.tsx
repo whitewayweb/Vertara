@@ -38,7 +38,7 @@ export function VideoDropzone({ disabled = false, onFileSelected }: VideoDropzon
       <div className="space-y-3">
         <div>
           <p className="font-medium">Drop a video here</p>
-          <p className="text-sm text-muted-foreground">MP4 or WebM recommended. MOV is best effort.</p>
+          <p className="text-sm text-muted-foreground">MOV files are converted automatically when needed.</p>
         </div>
         <VideoFileInput disabled={disabled} onFileSelected={onFileSelected} />
       </div>

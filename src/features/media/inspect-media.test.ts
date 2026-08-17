@@ -25,7 +25,7 @@ describe("validateVideoFile", () => {
     });
   });
 
-  it("explains how to recover when a MOV codec cannot be decoded", async () => {
+  it("identifies a MOV codec that needs local conversion", async () => {
     let notifyMetadata = () => undefined;
     const video = {
       duration: Number.NaN,
@@ -59,7 +59,7 @@ describe("validateVideoFile", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: { code: "unsupported-codec", message: expect.stringContaining("H.264 MP4") },
+      error: { code: "unsupported-codec", message: expect.stringContaining("local conversion") },
     });
   });
 });

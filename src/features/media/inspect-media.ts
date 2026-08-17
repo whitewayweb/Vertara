@@ -76,7 +76,7 @@ function getUnreadableMediaError(fileName: string): MediaInspectionResult {
       ok: false,
       error: {
         code: "unsupported-codec",
-        message: "This MOV codec is not supported by this browser. Export it as an H.264 MP4, then import that copy.",
+        message: "This MOV codec needs local conversion before it can be edited.",
       },
     };
   }
