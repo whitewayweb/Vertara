@@ -15,7 +15,7 @@ interface ExportPanelProps {
 }
 
 export function ExportPanel({ canvasLayout, focusLayout, mode, playback, posterLayout, sourceUrl }: ExportPanelProps) {
-  const [preset, setPreset] = useState<OutputPreset>("instagram-reels");
+  const [preset, setPreset] = useState<OutputPreset>("youtube-shorts");
   const [progress, setProgress] = useState<number>();
   const [error, setError] = useState<string>();
   async function handleExport() {

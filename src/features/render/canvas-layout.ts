@@ -5,9 +5,9 @@ export interface CanvasLayout {
 }
 
 export const defaultCanvasLayout: CanvasLayout = {
-  backdropBlurPixels: 24,
-  backdropOpacity: 0.6,
-  dimOpacity: 0.3,
+  backdropBlurPixels: 25,
+  backdropOpacity: 1,
+  dimOpacity: 0.8,
 };
 
 export function createCanvasLayout(
