@@ -40,26 +40,60 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
     fastStart: "in-memory",
     firstTimestampBehavior: "offset",
   });
-  const encoder = new VideoEncoder({
-    output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
-    error: (error) => { throw error; },
-  });
-  encoder.configure({ codec: "avc1.42001f", width: canvas.width, height: canvas.height, bitrate: 7_000_000, framerate: fps });
-
-  for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-    await seek(video, request.playback.trimStartSeconds + frameIndex / fps);
-    drawFrame(context, video, request);
-    const frame = new VideoFrame(canvas, { timestamp: Math.round((frameIndex * 1_000_000) / fps) });
-    encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 });
-    frame.close();
-    request.onProgress((frameIndex + 1) / frameCount);
+  const encoderConfig: VideoEncoderConfig = {
+    // Baseline Level 4.0 supports a 1080 × 1920, 30fps vertical export.
+    // Level 3.1 closes the encoder when asked to encode this resolution.
+    codec: "avc1.420028",
+    width: canvas.width,
+    height: canvas.height,
+    bitrate: 7_000_000,
+    framerate: fps,
+  };
+  const support = await VideoEncoder.isConfigSupported(encoderConfig);
+  if (!support.supported) {
+    video.remove();
+    throw new Error("This browser cannot encode the selected export size as H.264 MP4.");
   }
 
-  await encoder.flush();
-  encoder.close();
-  muxer.finalize();
-  video.remove();
-  return new Blob([target.buffer], { type: "video/mp4" });
+  let encoderError: Error | undefined;
+  const encoder = new VideoEncoder({
+    output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+    error: (error) => {
+      encoderError = error;
+    },
+  });
+  encoder.configure(encoderConfig);
+
+  try {
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      if (encoderError) {
+        throw new Error(`The browser encoder stopped: ${encoderError.message}`);
+      }
+
+      await seek(video, request.playback.trimStartSeconds + frameIndex / fps);
+      drawFrame(context, video, request);
+      const frame = new VideoFrame(canvas, { timestamp: Math.round((frameIndex * 1_000_000) / fps) });
+      encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 });
+      frame.close();
+
+      if (encoder.encodeQueueSize > 2) {
+        await encoder.flush();
+      }
+      request.onProgress((frameIndex + 1) / frameCount);
+    }
+
+    await encoder.flush();
+    if (encoderError) {
+      throw new Error(`The browser encoder stopped: ${encoderError.message}`);
+    }
+    muxer.finalize();
+    return new Blob([target.buffer], { type: "video/mp4" });
+  } finally {
+    if (encoder.state !== "closed") {
+      encoder.close();
+    }
+    video.remove();
+  }
 }
 
 async function loadVideo(sourceUrl: string): Promise<HTMLVideoElement> {
