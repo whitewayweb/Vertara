@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { VideoDropzone } from "@/components/molecules/video-dropzone";
 import { inspectMediaFile } from "@/features/media/inspect-media";
 import type { MediaInspectionResult } from "@/features/media/media.types";
 
 import { MediaSummary } from "./media-summary";
+import { LayoutEditor } from "./layout-editor";
 
 export function ImportPanel() {
   const [result, setResult] = useState<MediaInspectionResult>();
   const [isInspecting, setIsInspecting] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState<string>();
+
+  useEffect(() => {
+    return () => {
+      if (sourceUrl) {
+        URL.revokeObjectURL(sourceUrl);
+      }
+    };
+  }, [sourceUrl]);
 
   async function handleFileSelected(file: File) {
     setIsInspecting(true);
@@ -18,6 +28,7 @@ export function ImportPanel() {
 
     const inspectionResult = await inspectMediaFile(file);
     setResult(inspectionResult);
+    setSourceUrl(inspectionResult.ok ? URL.createObjectURL(file) : undefined);
     setIsInspecting(false);
   }
 
@@ -38,6 +49,9 @@ export function ImportPanel() {
         </p>
       ) : null}
       {result?.ok ? <MediaSummary media={result.media} /> : null}
+      {result?.ok && sourceUrl ? (
+        <LayoutEditor durationSeconds={result.media.durationSeconds} key={sourceUrl} sourceUrl={sourceUrl} />
+      ) : null}
     </section>
   );
 }
