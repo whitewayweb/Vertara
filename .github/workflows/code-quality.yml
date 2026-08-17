@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality:
-    name: ESLint and Knip
+    name: Quality and unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +21,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run build

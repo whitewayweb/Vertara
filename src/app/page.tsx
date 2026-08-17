@@ -13,10 +13,12 @@ export default function HomePage() {
       <p className="text-sm text-muted-foreground">
         Your videos stay on this device.
       </p>
-      <Button className="w-fit">
-        <Sparkles aria-hidden="true" />
-        Start a project
-      </Button>
+      <form action="/editor">
+        <Button className="w-fit" type="submit">
+          <Sparkles aria-hidden="true" />
+          Start a project
+        </Button>
+      </form>
     </main>
   );
 }
