@@ -1,19 +1,15 @@
-"use client";
-
-import { useState } from "react";
-
 import { CanvasVideoPreview } from "@/components/molecules/canvas-video-preview";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
-import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
+import { createCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
 
 interface CanvasEditorProps {
+  layout: CanvasLayout;
+  onChange(layout: CanvasLayout): void;
   playback: PlaybackSettings;
   sourceUrl: string;
 }
 
-export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
-  const [layout, setLayout] = useState(defaultCanvasLayout);
-
+export function CanvasEditor({ layout, onChange, playback, sourceUrl }: CanvasEditorProps) {
   return (
     <section aria-labelledby="canvas-editor-title" className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between gap-4">
@@ -39,7 +35,7 @@ export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
             aria-label="Backdrop blur"
             max="48"
             min="0"
-            onChange={(event) => setLayout((current) => createCanvasLayout(Number(event.target.value), current.backdropOpacity, current.dimOpacity))}
+            onChange={(event) => onChange(createCanvasLayout(Number(event.target.value), layout.backdropOpacity, layout.dimOpacity))}
             type="range"
             value={layout.backdropBlurPixels}
           />
@@ -50,7 +46,7 @@ export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
             aria-label="Backdrop intensity"
             max="1"
             min="0"
-            onChange={(event) => setLayout((current) => createCanvasLayout(current.backdropBlurPixels, Number(event.target.value), current.dimOpacity))}
+            onChange={(event) => onChange(createCanvasLayout(layout.backdropBlurPixels, Number(event.target.value), layout.dimOpacity))}
             step="0.05"
             type="range"
             value={layout.backdropOpacity}
@@ -62,7 +58,7 @@ export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
             aria-label="Backdrop dim"
             max="0.8"
             min="0"
-            onChange={(event) => setLayout((current) => createCanvasLayout(current.backdropBlurPixels, current.backdropOpacity, Number(event.target.value)))}
+            onChange={(event) => onChange(createCanvasLayout(layout.backdropBlurPixels, layout.backdropOpacity, Number(event.target.value)))}
             step="0.05"
             type="range"
             value={layout.dimOpacity}

@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { CanvasVideoPreview } from "@/components/molecules/canvas-video-preview";
 import { PosterVideoPreview } from "@/components/molecules/poster-video-preview";
 import { createPlaybackSettings, type PlaybackSettings } from "@/features/project/playback-settings";
+import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
+import { defaultFocusLayout, type FocusLayout } from "@/features/render/focus-layout";
+import { defaultPosterLayout, type PosterLayout } from "@/features/render/poster-layout";
 import { cn } from "@/lib/utils";
 
 import { CanvasEditor } from "./canvas-editor";
 import { EditSettingsPanel } from "./edit-settings-panel";
+import { ExportPanel } from "./export-panel";
 import { FocusEditor } from "./focus-editor";
 import { PosterEditor } from "./poster-editor";
 
@@ -31,6 +35,9 @@ export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) 
   const [selectedMode, setSelectedMode] = useState<LayoutMode>("canvas");
   const [isSelectionConfirmed, setIsSelectionConfirmed] = useState(false);
   const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
+  const [canvasLayout, setCanvasLayout] = useState<CanvasLayout>(defaultCanvasLayout);
+  const [focusLayout, setFocusLayout] = useState<FocusLayout>(defaultFocusLayout);
+  const [posterLayout, setPosterLayout] = useState<PosterLayout>(defaultPosterLayout);
   const thumbnailPlayback = { ...playback, muted: true };
 
   if (isSelectionConfirmed) {
@@ -48,12 +55,18 @@ export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) 
           </Button>
         </div>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <SelectedLayoutEditor mode={selectedMode} playback={playback} sourceUrl={sourceUrl} />
-          <EditSettingsPanel
-            durationSeconds={durationSeconds}
-            onChange={(nextSettings) => setPlayback(createPlaybackSettings(durationSeconds, nextSettings))}
-            settings={playback}
+          <SelectedLayoutEditor
+            canvasLayout={canvasLayout}
+            focusLayout={focusLayout}
+            mode={selectedMode}
+            onCanvasLayoutChange={setCanvasLayout}
+            onFocusLayoutChange={setFocusLayout}
+            onPosterLayoutChange={setPosterLayout}
+            playback={playback}
+            posterLayout={posterLayout}
+            sourceUrl={sourceUrl}
           />
+          <div className="space-y-4"><EditSettingsPanel durationSeconds={durationSeconds} onChange={(nextSettings) => setPlayback(createPlaybackSettings(durationSeconds, nextSettings))} settings={playback} /><ExportPanel canvasLayout={canvasLayout} focusLayout={focusLayout} mode={selectedMode} playback={playback} posterLayout={posterLayout} sourceUrl={sourceUrl} /></div>
         </div>
       </section>
     );
@@ -122,19 +135,35 @@ function LayoutThumbnail({ mode, playback, sourceUrl }: LayoutThumbnailProps) {
 }
 
 interface SelectedLayoutEditorProps {
+  canvasLayout: CanvasLayout;
+  focusLayout: FocusLayout;
   mode: LayoutMode;
+  onCanvasLayoutChange(layout: CanvasLayout): void;
+  onFocusLayoutChange(layout: FocusLayout): void;
+  onPosterLayoutChange(layout: PosterLayout): void;
   playback: PlaybackSettings;
+  posterLayout: PosterLayout;
   sourceUrl: string;
 }
 
-function SelectedLayoutEditor({ mode, playback, sourceUrl }: SelectedLayoutEditorProps) {
+function SelectedLayoutEditor({
+  canvasLayout,
+  focusLayout,
+  mode,
+  onCanvasLayoutChange,
+  onFocusLayoutChange,
+  onPosterLayoutChange,
+  playback,
+  posterLayout,
+  sourceUrl,
+}: SelectedLayoutEditorProps) {
   if (mode === "canvas") {
-    return <CanvasEditor playback={playback} sourceUrl={sourceUrl} />;
+    return <CanvasEditor layout={canvasLayout} onChange={onCanvasLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
   }
 
   if (mode === "focus") {
-    return <FocusEditor playback={playback} sourceUrl={sourceUrl} />;
+    return <FocusEditor layout={focusLayout} onChange={onFocusLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
   }
 
-  return <PosterEditor playback={playback} sourceUrl={sourceUrl} />;
+  return <PosterEditor layout={posterLayout} onChange={onPosterLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
 }

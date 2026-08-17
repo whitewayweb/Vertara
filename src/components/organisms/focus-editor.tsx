@@ -1,29 +1,27 @@
 "use client";
 
-import { useState } from "react";
-
 import { PlaybackVideo } from "@/components/atoms/playback-video";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import {
   createFocusLayout,
-  defaultFocusLayout,
+  type FocusLayout,
   getFocusObjectPosition,
 } from "@/features/render/focus-layout";
 
 interface FocusEditorProps {
+  layout: FocusLayout;
+  onChange(layout: FocusLayout): void;
   playback: PlaybackSettings;
   sourceUrl: string;
 }
 
-export function FocusEditor({ playback, sourceUrl }: FocusEditorProps) {
-  const [layout, setLayout] = useState(defaultFocusLayout);
-
+export function FocusEditor({ layout, onChange, playback, sourceUrl }: FocusEditorProps) {
   function updatePanX(panX: number) {
-    setLayout((currentLayout) => createFocusLayout(panX, currentLayout.zoom));
+    onChange(createFocusLayout(panX, layout.zoom));
   }
 
   function updateZoom(zoom: number) {
-    setLayout((currentLayout) => createFocusLayout(currentLayout.panX, zoom));
+    onChange(createFocusLayout(layout.panX, zoom));
   }
 
   return (
