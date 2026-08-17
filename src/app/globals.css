@@ -1,0 +1,15 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  display: grid;
+  min-height: 100dvh;
+  place-content: center;
+  padding: 2rem;
+}

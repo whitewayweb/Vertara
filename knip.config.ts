@@ -1,0 +1,10 @@
+import type { KnipConfig } from "knip";
+
+const config: KnipConfig = {
+  entry: [
+    "src/app/**/{page,layout,loading,error,not-found,template,default,route}.{js,jsx,ts,tsx}",
+  ],
+  project: ["src/**/*.{js,jsx,ts,tsx}"],
+};
+
+export default config;

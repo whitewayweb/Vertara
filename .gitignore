@@ -7,6 +7,10 @@
 
 # testing
 /coverage
+/reports
+
+# static-analysis output
+/.knip
 
 # next.js
 /.next/
