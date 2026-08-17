@@ -19,7 +19,8 @@ type MediaInspectionErrorCode =
   | "unsupported-file"
   | "unsupported-codec"
   | "invalid-metadata"
-  | "metadata-load-failed";
+  | "metadata-load-failed"
+  | "compatibility-conversion-failed";
 
 interface MediaInspectionError {
   code: MediaInspectionErrorCode;
