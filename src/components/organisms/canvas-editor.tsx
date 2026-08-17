@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
+
 import { CanvasVideoPreview } from "@/components/molecules/canvas-video-preview";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
+import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
 
 interface CanvasEditorProps {
   playback: PlaybackSettings;
@@ -7,6 +12,8 @@ interface CanvasEditorProps {
 }
 
 export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
+  const [layout, setLayout] = useState(defaultCanvasLayout);
+
   return (
     <section aria-labelledby="canvas-editor-title" className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between gap-4">
@@ -17,6 +24,7 @@ export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
         <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">9:16</span>
       </div>
       <CanvasVideoPreview
+        canvasLayout={layout}
         className="mx-auto mt-5 aspect-[9/16] w-full max-w-64 rounded-lg shadow-sm"
         playback={playback}
         sourceUrl={sourceUrl}
@@ -24,6 +32,43 @@ export function CanvasEditor({ playback, sourceUrl }: CanvasEditorProps) {
       <p className="mt-4 text-sm text-muted-foreground">
         The original landscape frame is fully visible over a blurred version of itself.
       </p>
+      <div className="mt-5 space-y-4">
+        <label className="grid gap-2 text-sm font-medium">
+          Backdrop blur <span className="font-normal text-muted-foreground">{Math.round(layout.backdropBlurPixels)} px</span>
+          <input
+            aria-label="Backdrop blur"
+            max="48"
+            min="0"
+            onChange={(event) => setLayout((current) => createCanvasLayout(Number(event.target.value), current.backdropOpacity, current.dimOpacity))}
+            type="range"
+            value={layout.backdropBlurPixels}
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-medium">
+          Backdrop intensity <span className="font-normal text-muted-foreground">{Math.round(layout.backdropOpacity * 100)}%</span>
+          <input
+            aria-label="Backdrop intensity"
+            max="1"
+            min="0"
+            onChange={(event) => setLayout((current) => createCanvasLayout(current.backdropBlurPixels, Number(event.target.value), current.dimOpacity))}
+            step="0.05"
+            type="range"
+            value={layout.backdropOpacity}
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-medium">
+          Backdrop dim <span className="font-normal text-muted-foreground">{Math.round(layout.dimOpacity * 100)}%</span>
+          <input
+            aria-label="Backdrop dim"
+            max="0.8"
+            min="0"
+            onChange={(event) => setLayout((current) => createCanvasLayout(current.backdropBlurPixels, current.backdropOpacity, Number(event.target.value)))}
+            step="0.05"
+            type="range"
+            value={layout.dimOpacity}
+          />
+        </label>
+      </div>
     </section>
   );
 }

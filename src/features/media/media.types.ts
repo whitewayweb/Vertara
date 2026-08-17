@@ -17,6 +17,7 @@ export interface MediaDescriptor {
 
 type MediaInspectionErrorCode =
   | "unsupported-file"
+  | "unsupported-codec"
   | "invalid-metadata"
   | "metadata-load-failed";
 

@@ -70,18 +70,32 @@ function getAudioAvailability(video: VideoMetadataElement): AudioAvailability {
   return video.audioTracks.length > 0 ? "available" : "unavailable";
 }
 
+function getUnreadableMediaError(fileName: string): MediaInspectionResult {
+  if (getFormat(fileName) === "mov") {
+    return {
+      ok: false,
+      error: {
+        code: "unsupported-codec",
+        message: "This MOV codec is not supported by this browser. Export it as an H.264 MP4, then import that copy.",
+      },
+    };
+  }
+
+  return {
+    ok: false,
+    error: {
+      code: "metadata-load-failed",
+      message: "This video could not be read by this browser. Try an H.264 MP4 or a WebM file.",
+    },
+  };
+}
+
 function createDescriptor(file: File, video: VideoMetadataElement): MediaInspectionResult {
   const format = getFormat(file.name);
   const { duration, videoHeight: height, videoWidth: width } = video;
 
   if (!format || !Number.isFinite(duration) || duration <= 0 || width <= 0 || height <= 0) {
-    return {
-      ok: false,
-      error: {
-        code: "invalid-metadata",
-        message: "This video does not expose usable duration or dimensions in this browser.",
-      },
-    };
+    return getUnreadableMediaError(file.name);
   }
 
   const media: MediaDescriptor = {
@@ -129,13 +143,7 @@ export async function inspectMediaFile(
 
     video.onerror = () => {
       cleanUp();
-      resolve({
-        ok: false,
-        error: {
-          code: "metadata-load-failed",
-          message: "This video could not be read by this browser.",
-        },
-      });
+      resolve(getUnreadableMediaError(file.name));
     };
 
     video.onloadedmetadata = () => {

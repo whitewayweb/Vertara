@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateVideoFile } from "./inspect-media";
+import { inspectMediaFile, validateVideoFile } from "./inspect-media";
 
 describe("validateVideoFile", () => {
   it("accepts MP4 files", () => {
@@ -22,6 +22,44 @@ describe("validateVideoFile", () => {
     expect(validateVideoFile({ name: "clip.mp4", type: "video/webm" })).toMatchObject({
       ok: false,
       error: { code: "unsupported-file" },
+    });
+  });
+
+  it("explains how to recover when a MOV codec cannot be decoded", async () => {
+    let notifyMetadata = () => undefined;
+    const video = {
+      duration: Number.NaN,
+      videoHeight: 0,
+      videoWidth: 0,
+      muted: false,
+      preload: "" as const,
+      onerror: null,
+      onloadedmetadata: null as (() => unknown) | null,
+      removeAttribute: () => undefined,
+      load: () => undefined,
+      get src() {
+        return "";
+      },
+      set src(_value: string) {
+        queueMicrotask(() => notifyMetadata());
+      },
+    };
+    notifyMetadata = () => {
+      video.onloadedmetadata?.();
+    };
+
+    const result = await inspectMediaFile(
+      { name: "clip.mov", type: "video/quicktime" } as File,
+      {
+        createObjectUrl: () => "blob:clip",
+        createVideoElement: () => video as never,
+        revokeObjectUrl: () => undefined,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "unsupported-codec", message: expect.stringContaining("H.264 MP4") },
     });
   });
 });
