@@ -13,7 +13,7 @@ export function HookSettingsPanel({ onChange, settings }: HookSettingsPanelProps
     <aside aria-labelledby="hook-settings-title" className="rounded-xl border bg-card p-5 shadow-sm">
       <p className="text-sm text-muted-foreground">First seconds</p>
       <h2 className="font-semibold" id="hook-settings-title">Opening hook</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Add a bold message at the start of the trimmed video.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Add a bold message at the start of the trimmed video. A placeholder is shown in preview only until you enter text.</p>
       <div className="mt-5 space-y-4">
         <label className="flex items-center justify-between gap-4 rounded-lg border p-3 text-sm font-medium">
           Show opening hook

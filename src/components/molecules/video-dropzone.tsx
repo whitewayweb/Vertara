@@ -38,7 +38,10 @@ export function VideoDropzone({ disabled = false, onFileSelected }: VideoDropzon
       <div className="space-y-3">
         <div>
           <p className="font-medium">Drop a video here</p>
-          <p className="text-sm text-muted-foreground">MOV files are converted automatically when needed.</p>
+          <p className="text-sm text-muted-foreground">
+            Opens MP4, WebM, and browser-compatible MOV directly. MOV, MKV, AVI, M4V, MPEG, MTS, WMV, FLV, and 3GP
+            can be converted locally when needed.
+          </p>
         </div>
         <VideoFileInput disabled={disabled} onFileSelected={onFileSelected} />
       </div>

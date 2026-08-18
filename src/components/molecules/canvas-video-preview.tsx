@@ -34,7 +34,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         playback={playback}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} /> : null}
+      {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder /> : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type SupportedVideoFormat = "mp4" | "webm" | "mov";
+export type SupportedVideoFormat = "mp4" | "webm" | "mov" | "other";
 
 export type AudioAvailability = "available" | "unavailable" | "unknown";
 

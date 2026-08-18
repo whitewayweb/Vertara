@@ -32,12 +32,25 @@ const formatByExtension = {
   mov: "mov",
   mp4: "mp4",
   webm: "webm",
+  m4v: "other",
+  mkv: "other",
+  avi: "other",
+  mpeg: "other",
+  mpg: "other",
+  mts: "other",
+  m2ts: "other",
+  ts: "other",
+  wmv: "other",
+  flv: "other",
+  "3gp": "other",
+  "3g2": "other",
 } as const satisfies Record<string, SupportedVideoFormat>;
 
 const mimeTypesByFormat: Record<SupportedVideoFormat, ReadonlySet<string>> = {
   mov: new Set(["video/quicktime"]),
   mp4: new Set(["video/mp4"]),
   webm: new Set(["video/webm"]),
+  other: new Set(),
 };
 
 function getFormat(fileName: string): SupportedVideoFormat | undefined {
@@ -47,7 +60,10 @@ function getFormat(fileName: string): SupportedVideoFormat | undefined {
 
 export function validateVideoFile(file: Pick<File, "name" | "type">): MediaInspectionResult | undefined {
   const format = getFormat(file.name);
-  const hasMatchingMimeType = file.type === "" || (format ? mimeTypesByFormat[format].has(file.type) : false);
+  const hasMatchingMimeType =
+    file.type === "" ||
+    (format === "other" && file.type.startsWith("video/")) ||
+    (format ? mimeTypesByFormat[format].has(file.type) : file.type.startsWith("video/"));
 
   if (format && hasMatchingMimeType) {
     return undefined;
@@ -57,7 +73,7 @@ export function validateVideoFile(file: Pick<File, "name" | "type">): MediaInspe
     ok: false,
     error: {
       code: "unsupported-file",
-      message: "Choose an MP4 or WebM video. MOV support depends on its codec.",
+      message: "Choose a video file. MP4, WebM, and browser-compatible MOV open directly; other formats can be converted locally.",
     },
   };
 }
@@ -70,31 +86,21 @@ function getAudioAvailability(video: VideoMetadataElement): AudioAvailability {
   return video.audioTracks.length > 0 ? "available" : "unavailable";
 }
 
-function getUnreadableMediaError(fileName: string): MediaInspectionResult {
-  if (getFormat(fileName) === "mov") {
-    return {
-      ok: false,
-      error: {
-        code: "unsupported-codec",
-        message: "This MOV codec needs local conversion before it can be edited.",
-      },
-    };
-  }
-
+function getUnreadableMediaError(_fileName: string): MediaInspectionResult {
   return {
     ok: false,
     error: {
-      code: "metadata-load-failed",
-      message: "This video could not be read by this browser. Try an H.264 MP4 or a WebM file.",
+      code: "unsupported-codec",
+      message: "This video needs local conversion before it can be edited.",
     },
   };
 }
 
 function createDescriptor(file: File, video: VideoMetadataElement): MediaInspectionResult {
-  const format = getFormat(file.name);
+  const format = getFormat(file.name) ?? "other";
   const { duration, videoHeight: height, videoWidth: width } = video;
 
-  if (!format || !Number.isFinite(duration) || duration <= 0 || width <= 0 || height <= 0) {
+  if (!Number.isFinite(duration) || duration <= 0 || width <= 0 || height <= 0) {
     return getUnreadableMediaError(file.name);
   }
 

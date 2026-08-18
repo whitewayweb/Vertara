@@ -31,7 +31,7 @@ export function PosterVideoPreview({ className, headline, hook, playback, source
         playback={playback}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} /> : null}
+      {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder /> : null}
     </div>
   );
 }

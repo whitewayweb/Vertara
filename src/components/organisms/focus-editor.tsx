@@ -50,7 +50,7 @@ export function FocusEditor({ hook, layout, onChange, playback, sourceUrl }: Foc
             transform: `scale(${layout.zoom})`,
           }}
         />
-        <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} />
+        <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder />
       </div>
       <div className="mt-5 space-y-4">
         <label className="grid gap-2 text-sm font-medium">

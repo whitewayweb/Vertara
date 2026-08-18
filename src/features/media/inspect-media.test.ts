@@ -11,6 +11,10 @@ describe("validateVideoFile", () => {
     expect(validateVideoFile({ name: "clip.webm", type: "" })).toBeUndefined();
   });
 
+  it("accepts a common video container for local conversion", () => {
+    expect(validateVideoFile({ name: "camera.mkv", type: "video/x-matroska" })).toBeUndefined();
+  });
+
   it("rejects unsupported file types", () => {
     expect(validateVideoFile({ name: "notes.pdf", type: "application/pdf" })).toMatchObject({
       ok: false,
@@ -25,7 +29,7 @@ describe("validateVideoFile", () => {
     });
   });
 
-  it("identifies a MOV codec that needs local conversion", async () => {
+  it("identifies a browser-unreadable video that needs local conversion", async () => {
     let notifyMetadata = () => undefined;
     const video = {
       duration: Number.NaN,

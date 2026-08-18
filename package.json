@@ -7,6 +7,7 @@
   },
   "scripts": {
     "prepare:ffmpeg": "node scripts/prepare-ffmpeg-core.mjs",
+    "native-helper": "node tools/native-helper/vertara-media-helper.mjs",
     "predev": "npm run prepare:ffmpeg",
     "prebuild": "npm run prepare:ffmpeg",
     "dev": "next dev",
@@ -25,6 +26,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/core-mt": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "class-variance-authority": "^0.7.1",
