@@ -47,6 +47,15 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.vertara-workspace input[type="range"] {
+  accent-color: #22d3ee;
+}
+
+.vertara-range {
+  height: 0.25rem;
+  cursor: pointer;
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);

@@ -1,179 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { AudioLines, Captions, Clapperboard, Crop, ImageIcon, LayoutTemplate, Pause, Play, Redo2, Settings2, Undo2, Volume2 } from "lucide-react";
 
 import { PlaybackVideo } from "@/components/atoms/playback-video";
-import { Button } from "@/components/ui/button";
 import { CanvasVideoPreview } from "@/components/molecules/canvas-video-preview";
 import { PosterVideoPreview } from "@/components/molecules/poster-video-preview";
-import { createPlaybackSettings, type PlaybackSettings } from "@/features/project/playback-settings";
+import { Button } from "@/components/ui/button";
+import { exportLocalMp4, ExportCancelledError, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import { createHookSettings, type HookSettings } from "@/features/project/hook-settings";
-import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
-import { defaultFocusLayout, type FocusLayout } from "@/features/render/focus-layout";
+import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
+import { createPlaybackSettings, type PlaybackSettings } from "@/features/project/playback-settings";
+import { createCanvasLayout, defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
+import { createFocusLayout, defaultFocusLayout, getFocusObjectPosition, type FocusLayout } from "@/features/render/focus-layout";
 import { defaultPosterLayout, type PosterLayout } from "@/features/render/poster-layout";
+import type { MediaDescriptor } from "@/features/media/media.types";
 import { cn } from "@/lib/utils";
 
-import { CanvasEditor } from "./canvas-editor";
-import { EditSettingsPanel } from "./edit-settings-panel";
-import { ExportPanel } from "./export-panel";
-import { FocusEditor } from "./focus-editor";
-import { HookSettingsPanel } from "./hook-settings-panel";
-import { PosterEditor } from "./poster-editor";
-
-type LayoutMode = "canvas" | "focus" | "poster";
-
-interface LayoutEditorProps {
-  durationSeconds: number;
-  sourceUrl: string;
-}
-
+type LayoutMode = ExportLayoutMode;
+interface LayoutEditorProps { durationSeconds: number; media: MediaDescriptor; sourceUrl: string; }
 const layoutOptions: Array<{ description: string; label: string; value: LayoutMode }> = [
-  { value: "canvas", label: "Canvas", description: "Full landscape video with a blurred backdrop" },
-  { value: "focus", label: "Focus", description: "9:16 crop with pan and zoom" },
-  { value: "poster", label: "Poster", description: "A styled title card around the full video" },
+  { value: "canvas", label: "Canvas", description: "Keep the entire landscape frame" },
+  { value: "focus", label: "Focus", description: "Fill the vertical frame" },
+  { value: "poster", label: "Poster", description: "Add a title-led composition" },
 ];
+function formatTime(seconds: number) { const rounded = Math.round(seconds); return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`; }
 
-export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) {
-  const [selectedMode, setSelectedMode] = useState<LayoutMode>("canvas");
-  const [isSelectionConfirmed, setIsSelectionConfirmed] = useState(false);
+export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditorProps) {
+  const [mode, setMode] = useState<LayoutMode>("canvas");
   const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
-  const [hook, setHook] = useState<HookSettings>(() => createHookSettings());
   const [canvasLayout, setCanvasLayout] = useState<CanvasLayout>(defaultCanvasLayout);
   const [focusLayout, setFocusLayout] = useState<FocusLayout>(defaultFocusLayout);
   const [posterLayout, setPosterLayout] = useState<PosterLayout>(defaultPosterLayout);
-  const thumbnailPlayback = { ...playback, muted: true };
-
-  if (isSelectionConfirmed) {
-    return (
-      <section aria-labelledby="selected-layout-title" className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Selected layout</p>
-            <h2 className="font-semibold" id="selected-layout-title">
-              {layoutOptions.find((option) => option.value === selectedMode)?.label}
-            </h2>
-          </div>
-          <Button onClick={() => setIsSelectionConfirmed(false)} variant="outline">
-            Compare layouts
-          </Button>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <SelectedLayoutEditor
-            canvasLayout={canvasLayout}
-            focusLayout={focusLayout}
-            hook={hook}
-            mode={selectedMode}
-            onCanvasLayoutChange={setCanvasLayout}
-            onFocusLayoutChange={setFocusLayout}
-            onPosterLayoutChange={setPosterLayout}
-            playback={playback}
-            posterLayout={posterLayout}
-            sourceUrl={sourceUrl}
-          />
-          <div className="space-y-4">
-            <EditSettingsPanel durationSeconds={durationSeconds} onChange={(nextSettings) => setPlayback(createPlaybackSettings(durationSeconds, nextSettings))} settings={playback} />
-            <HookSettingsPanel onChange={(nextSettings) => setHook(createHookSettings(nextSettings))} settings={hook} />
-            <ExportPanel canvasLayout={canvasLayout} focusLayout={focusLayout} hook={hook} mode={selectedMode} playback={playback} posterLayout={posterLayout} sourceUrl={sourceUrl} />
-          </div>
-        </div>
-      </section>
-    );
+  const [hook, setHook] = useState<HookSettings>(() => createHookSettings());
+  const [preset, setPreset] = useState<OutputPreset>("youtube-shorts");
+  const [progress, setProgress] = useState<number>();
+  const [error, setError] = useState<string>();
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
+  const selectedLayout = layoutOptions.find((option) => option.value === mode)!;
+  async function handleExport() {
+    setError(undefined); setProgress(0);
+    const abortController = new AbortController(); abortControllerRef.current = abortController;
+    try {
+      const file = await exportLocalMp4({ abortSignal: abortController.signal, canvasLayout, focusLayout, hook, mode, onProgress: setProgress, output: outputPresets[preset], playback, posterLayout, sourceUrl });
+      const downloadUrl = URL.createObjectURL(file); const link = document.createElement("a"); link.href = downloadUrl; link.download = "vertara-export.mp4"; link.click(); URL.revokeObjectURL(downloadUrl);
+    } catch (caughtError) {
+      if (!(caughtError instanceof ExportCancelledError)) setError(caughtError instanceof Error ? caughtError.message : "Export failed. Please try again.");
+    } finally { setProgress(undefined); abortControllerRef.current = undefined; }
   }
-
-  return (
-    <section aria-labelledby="layout-editor-title" className="space-y-4">
-      <div>
-        <p className="text-sm text-muted-foreground">Layout previews</p>
-        <h2 className="font-semibold" id="layout-editor-title">Compare your output styles</h2>
-      </div>
-      <div aria-label="Output layout" className="grid grid-cols-1 gap-3 sm:grid-cols-3" role="radiogroup">
-        {layoutOptions.map((option) => (
-          <button
-            aria-checked={selectedMode === option.value}
-            className={cn(
-              "rounded-lg border p-3 text-left transition-colors",
-              selectedMode === option.value ? "border-primary bg-primary/5" : "hover:bg-muted/60",
-            )}
-            key={option.value}
-            onClick={() => setSelectedMode(option.value)}
-            role="radio"
-            type="button"
-          >
-            <LayoutThumbnail mode={option.value} playback={thumbnailPlayback} sourceUrl={sourceUrl} />
-            <span className="block text-sm font-medium">{option.label}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
-          </button>
-        ))}
-      </div>
-      <Button className="w-full" onClick={() => setIsSelectionConfirmed(true)}>
-        Continue with {layoutOptions.find((option) => option.value === selectedMode)?.label}
-      </Button>
-    </section>
-  );
+  return <section aria-label="Vertara editor" className="vertara-workspace overflow-hidden rounded-2xl border border-white/10 bg-[#101216] text-slate-100 shadow-2xl shadow-black/30">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 px-4 sm:px-6"><div className="flex items-center gap-4 sm:gap-7"><span className="text-lg font-semibold tracking-[0.14em] text-white">VERTARA</span><div className="hidden h-6 w-px bg-white/10 sm:block" /><div className="hidden items-center gap-2 sm:flex"><span className="font-medium text-white">Untitled project</span></div></div><div className="flex items-center gap-1.5"><Button aria-label="Undo" className="text-slate-300 hover:bg-white/10 hover:text-white" size="icon-sm" type="button" variant="ghost"><Undo2 /></Button><Button aria-label="Redo" className="text-slate-300 hover:bg-white/10 hover:text-white" size="icon-sm" type="button" variant="ghost"><Redo2 /></Button><Button className="ml-2 bg-cyan-400 text-slate-950 hover:bg-cyan-300" disabled={progress !== undefined} onClick={handleExport}>{progress === undefined ? "Export" : `${Math.round(progress * 100)}%`}</Button></div></header>
+    <div className="grid min-h-[760px] lg:grid-cols-[12rem_minmax(0,1fr)_24rem]">
+      <nav aria-label="Editor tools" className="border-b border-white/10 bg-[#14171d] p-3 lg:border-r lg:border-b-0"><div className="grid grid-cols-4 gap-1 lg:grid-cols-1"><ToolLink active icon={Clapperboard} label="Media" /><ToolLink icon={LayoutTemplate} label="Layouts" /><ToolLink icon={Captions} label="Captions" /><ToolLink icon={ImageIcon} label="Brand" /></div><div className="mt-8 hidden rounded-lg border border-cyan-300/15 bg-cyan-400/5 p-3 text-xs leading-5 text-slate-400 lg:block"><span className="font-medium text-cyan-200">Private workspace</span><br />{media.name}<br />{media.width} × {media.height} · {formatTime(media.durationSeconds)}</div></nav>
+      <main className="flex min-w-0 flex-col bg-[#0c0f13]"><div className="flex items-center justify-between px-5 pt-4 sm:px-7"><div><p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Output</p><h1 className="mt-1 text-base font-medium text-white">Vertical story</h1></div><span className="rounded-md border border-white/15 px-2.5 py-1 text-xs font-medium text-slate-300">9:16</span></div><div className="flex min-h-0 flex-1 items-center justify-center p-5 sm:p-8"><PreviewStage canvasLayout={canvasLayout} focusLayout={focusLayout} hook={hook} mode={mode} playback={playback} posterLayout={posterLayout} sourceUrl={sourceUrl} /></div><div className="flex items-center justify-between px-5 pb-4 text-slate-300 sm:px-7"><div className="flex items-center gap-1"><Button aria-label="Play preview" className="hover:bg-white/10 hover:text-white" size="icon-sm" type="button" variant="ghost"><Play fill="currentColor" /></Button><Button aria-label="Preview volume" className="hover:bg-white/10 hover:text-white" size="icon-sm" type="button" variant="ghost"><Volume2 /></Button></div><span className="text-sm font-medium text-cyan-300">{formatTime(playback.trimStartSeconds)} <span className="text-slate-500">/ {formatTime(playback.trimEndSeconds)}</span></span><span className="hidden text-xs text-slate-500 sm:inline">Preview quality: Adaptive</span></div><Timeline durationSeconds={durationSeconds} endSeconds={playback.trimEndSeconds} startSeconds={playback.trimStartSeconds} /></main>
+      <aside className="border-t border-white/10 bg-[#14171d] lg:border-t-0 lg:border-l"><div className="border-b border-white/10 px-5 py-4"><div className="flex items-center gap-2"><Settings2 className="size-4 text-cyan-300" /><h2 className="font-medium text-white">Frame & focus</h2></div></div><div className="space-y-6 p-5"><div><p className="mb-3 text-sm font-medium text-slate-200">Layout</p><div className="grid grid-cols-3 gap-2">{layoutOptions.map((option) => <button aria-pressed={mode === option.value} className={cn("rounded-lg border p-2 text-left transition", mode === option.value ? "border-cyan-300 bg-cyan-400/10" : "border-white/10 bg-white/[0.02] hover:border-white/25")} key={option.value} onClick={() => setMode(option.value)} type="button"><LayoutGlyph mode={option.value} /><span className="mt-2 block text-xs font-medium text-white">{option.label}</span></button>)}</div><p className="mt-2 text-xs leading-5 text-slate-500">{selectedLayout.description}</p></div>{mode === "focus" ? <FocusControls layout={focusLayout} onChange={setFocusLayout} /> : null}{mode === "canvas" ? <CanvasControls layout={canvasLayout} onChange={setCanvasLayout} /> : null}{mode === "poster" ? <PosterControls layout={posterLayout} onChange={setPosterLayout} /> : null}<div className="border-t border-white/10 pt-5"><p className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-200"><Crop className="size-4 text-slate-400" /> Trim & audio</p><RangeControl label="Starts at" max={Math.max(0, playback.trimEndSeconds - 0.1)} min={0} onChange={(value) => setPlayback(createPlaybackSettings(durationSeconds, { ...playback, trimStartSeconds: value }))} value={playback.trimStartSeconds} valueLabel={formatTime(playback.trimStartSeconds)} /><RangeControl label="Ends at" max={durationSeconds} min={Math.min(durationSeconds, playback.trimStartSeconds + 0.1)} onChange={(value) => setPlayback(createPlaybackSettings(durationSeconds, { ...playback, trimEndSeconds: value }))} value={playback.trimEndSeconds} valueLabel={formatTime(playback.trimEndSeconds)} /><label className="mt-4 flex cursor-pointer items-center justify-between rounded-lg border border-white/10 px-3 py-2.5 text-sm text-slate-200"><span className="flex items-center gap-2"><AudioLines className="size-4 text-slate-400" />Mute original audio</span><input checked={playback.muted} className="accent-cyan-400" onChange={(event) => setPlayback({ ...playback, muted: event.target.checked })} type="checkbox" /></label></div><div className="border-t border-white/10 pt-5"><p className="mb-3 text-sm font-medium text-slate-200">Opening hook</p><label className="flex items-center justify-between text-sm text-slate-300">Show intro text<input checked={hook.enabled} className="accent-cyan-400" onChange={(event) => setHook(createHookSettings({ ...hook, enabled: event.target.checked }))} type="checkbox" /></label>{hook.enabled ? <textarea className="mt-3 min-h-20 w-full rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300" maxLength={90} onChange={(event) => setHook(createHookSettings({ ...hook, text: event.target.value }))} placeholder="What should viewers notice first?" value={hook.text} /> : null}</div><div className="border-t border-white/10 pt-5"><label className="text-sm font-medium text-slate-200" htmlFor="export-preset">Export preset</label><select className="mt-2 w-full rounded-lg border border-white/10 bg-[#0d1015] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300" id="export-preset" onChange={(event) => setPreset(event.target.value)} value={preset}>{Object.values(outputPresets).map((option) => <option key={option.preset} value={option.preset}>{option.destination} · {option.label}</option>)}</select><p className="mt-2 text-xs leading-5 text-slate-500">Exports stay on this device. Source audio is not yet included in MP4 exports.</p>{error ? <p aria-live="polite" className="mt-2 text-xs text-red-300">{error}</p> : null}{progress !== undefined ? <Button className="mt-3 w-full border-white/15 text-slate-100 hover:bg-white/10" onClick={() => abortControllerRef.current?.abort()} variant="outline">Cancel export</Button> : null}</div></div></aside>
+    </div>
+  </section>;
 }
-
-interface LayoutThumbnailProps {
-  mode: LayoutMode;
-  playback: PlaybackSettings;
-  sourceUrl: string;
-}
-
-function LayoutThumbnail({ mode, playback, sourceUrl }: LayoutThumbnailProps) {
-  if (mode === "focus") {
-    return (
-      <div className="mb-3 aspect-[9/16] overflow-hidden rounded-md bg-black">
-        <PlaybackVideo ariaHidden className="h-full w-full object-cover" playback={playback} sourceUrl={sourceUrl} />
-      </div>
-    );
-  }
-
-  if (mode === "poster") {
-    return (
-      <PosterVideoPreview
-        className="mb-3 aspect-[9/16] rounded-md"
-        headline="A story worth sharing"
-        playback={playback}
-        sourceUrl={sourceUrl}
-        subline="Made for the vertical screen"
-      />
-    );
-  }
-
-  return <CanvasVideoPreview className="mb-3 aspect-[9/16] rounded-md" playback={playback} sourceUrl={sourceUrl} />;
-}
-
-interface SelectedLayoutEditorProps {
-  canvasLayout: CanvasLayout;
-  focusLayout: FocusLayout;
-  hook: HookSettings;
-  mode: LayoutMode;
-  onCanvasLayoutChange(layout: CanvasLayout): void;
-  onFocusLayoutChange(layout: FocusLayout): void;
-  onPosterLayoutChange(layout: PosterLayout): void;
-  playback: PlaybackSettings;
-  posterLayout: PosterLayout;
-  sourceUrl: string;
-}
-
-function SelectedLayoutEditor({
-  canvasLayout,
-  focusLayout,
-  hook,
-  mode,
-  onCanvasLayoutChange,
-  onFocusLayoutChange,
-  onPosterLayoutChange,
-  playback,
-  posterLayout,
-  sourceUrl,
-}: SelectedLayoutEditorProps) {
-  if (mode === "canvas") {
-    return <CanvasEditor hook={hook} layout={canvasLayout} onChange={onCanvasLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
-  }
-
-  if (mode === "focus") {
-    return <FocusEditor hook={hook} layout={focusLayout} onChange={onFocusLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
-  }
-
-  return <PosterEditor hook={hook} layout={posterLayout} onChange={onPosterLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
-}
+function ToolLink({ active = false, icon: Icon, label }: { active?: boolean; icon: typeof Clapperboard; label: string }) { return <button className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition", active ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200")} type="button"><Icon className={cn("size-4", active && "text-cyan-300")} /><span className="hidden lg:inline">{label}</span></button>; }
+function LayoutGlyph({ mode }: { mode: LayoutMode }) { return <span aria-hidden className="flex h-14 items-center justify-center rounded-md bg-slate-950/70">{mode === "focus" ? <span className="h-10 w-5 rounded-sm border border-slate-500 bg-slate-800" /> : mode === "poster" ? <span className="flex h-10 w-7 flex-col justify-between rounded-sm bg-gradient-to-br from-violet-500 to-fuchsia-500 p-1"><i className="h-1 w-4 bg-white/70" /><i className="h-4 bg-slate-900" /></span> : <span className="relative h-10 w-5 rounded-sm bg-slate-800"><i className="absolute left-0 right-0 top-3 h-4 bg-slate-500" /></span>}</span>; }
+function RangeControl({ label, max, min, onChange, value, valueLabel }: { label: string; max: number; min: number; onChange(value: number): void; value: number; valueLabel: string }) { return <label className="mt-3 block text-sm text-slate-300"><span className="flex justify-between"><span>{label}</span><span className="text-slate-500">{valueLabel}</span></span><input className="vertara-range mt-2 w-full" max={max} min={min} onChange={(event) => onChange(Number(event.target.value))} step="0.1" type="range" value={value} /></label>; }
+function CanvasControls({ layout, onChange }: { layout: CanvasLayout; onChange(layout: CanvasLayout): void }) { return <div className="space-y-4 border-t border-white/10 pt-5"><p className="text-sm font-medium text-slate-200">Backdrop</p><RangeControl label="Blur" max={48} min={0} onChange={(value) => onChange(createCanvasLayout(value, layout.backdropOpacity, layout.dimOpacity))} value={layout.backdropBlurPixels} valueLabel={`${Math.round(layout.backdropBlurPixels)} px`} /><RangeControl label="Intensity" max={1} min={0} onChange={(value) => onChange(createCanvasLayout(layout.backdropBlurPixels, value, layout.dimOpacity))} value={layout.backdropOpacity} valueLabel={`${Math.round(layout.backdropOpacity * 100)}%`} /><RangeControl label="Dim" max={0.8} min={0} onChange={(value) => onChange(createCanvasLayout(layout.backdropBlurPixels, layout.backdropOpacity, value))} value={layout.dimOpacity} valueLabel={`${Math.round(layout.dimOpacity * 100)}%`} /></div>; }
+function FocusControls({ layout, onChange }: { layout: FocusLayout; onChange(layout: FocusLayout): void }) { return <div className="space-y-4 border-t border-white/10 pt-5"><p className="text-sm font-medium text-slate-200">Crop</p><RangeControl label="Position" max={100} min={0} onChange={(value) => onChange(createFocusLayout(value, layout.zoom))} value={layout.panX} valueLabel={`${Math.round(layout.panX)}%`} /><RangeControl label="Scale" max={2} min={1} onChange={(value) => onChange(createFocusLayout(layout.panX, value))} value={layout.zoom} valueLabel={`${layout.zoom.toFixed(2)}×`} /></div>; }
+function PosterControls({ layout, onChange }: { layout: PosterLayout; onChange(layout: PosterLayout): void }) { return <div className="space-y-3 border-t border-white/10 pt-5"><p className="text-sm font-medium text-slate-200">Poster text</p><input className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300" onChange={(event) => onChange({ ...layout, headline: event.target.value })} value={layout.headline} /><input className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300" onChange={(event) => onChange({ ...layout, subline: event.target.value })} value={layout.subline} /></div>; }
+function PreviewStage({ canvasLayout, focusLayout, hook, mode, playback, posterLayout, sourceUrl }: { canvasLayout: CanvasLayout; focusLayout: FocusLayout; hook: HookSettings; mode: LayoutMode; playback: PlaybackSettings; posterLayout: PosterLayout; sourceUrl: string }) { const stageClass = "aspect-[9/16] h-[min(57vw,35rem)] min-h-72 max-h-[34rem] rounded-lg shadow-2xl shadow-black/50"; if (mode === "canvas") return <CanvasVideoPreview canvasLayout={canvasLayout} className={stageClass} hook={hook} playback={playback} sourceUrl={sourceUrl} />; if (mode === "poster") return <PosterVideoPreview className={stageClass} headline={posterLayout.headline} hook={hook} playback={playback} sourceUrl={sourceUrl} subline={posterLayout.subline} />; return <div className={cn("relative overflow-hidden bg-black", stageClass)}><PlaybackVideo className="h-full w-full object-cover" playback={playback} sourceUrl={sourceUrl} style={{ objectPosition: getFocusObjectPosition(focusLayout), transform: `scale(${focusLayout.zoom})` }} /></div>; }
+function Timeline({ durationSeconds, endSeconds, startSeconds }: { durationSeconds: number; endSeconds: number; startSeconds: number }) { const rangeStart = `${(startSeconds / durationSeconds) * 100}%`; const rangeWidth = `${((endSeconds - startSeconds) / durationSeconds) * 100}%`; return <section aria-label="Video timeline" className="border-t border-white/10 bg-[#101318] px-5 py-4 sm:px-7"><div className="mb-2 flex justify-between text-[10px] font-medium text-slate-500"><span>00:00</span><span>{formatTime(durationSeconds / 2)}</span><span>{formatTime(durationSeconds)}</span></div><div className="relative h-16 overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(110deg,#17202a,#293e45,#19202a,#3d3224,#1b252a)]"><div className="absolute inset-y-0 border-2 border-cyan-300 bg-cyan-400/10" style={{ left: rangeStart, width: rangeWidth }} /><div className="absolute inset-y-0 left-1/2 w-px bg-cyan-300"><span className="absolute -left-1.5 -top-1.5 size-3 rounded-full bg-cyan-300" /></div><div className="absolute inset-x-0 bottom-1 flex items-end gap-px px-4 opacity-50">{Array.from({ length: 80 }, (_, index) => <i className="w-full bg-violet-400" key={index} style={{ height: `${8 + ((index * 17) % 22)}%` }} />)}</div></div><div className="mt-3 flex items-center gap-3 text-xs text-slate-500"><Pause className="size-3" /><span>V1</span><span className="ml-auto">A1</span></div></section>; }

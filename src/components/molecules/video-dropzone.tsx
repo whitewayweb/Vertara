@@ -26,8 +26,8 @@ export function VideoDropzone({ disabled = false, onFileSelected }: VideoDropzon
   return (
     <div
       className={cn(
-        "grid min-h-56 place-items-center rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center transition-colors",
-        isDragging && "border-primary bg-primary/5",
+        "grid min-h-56 place-items-center rounded-xl border border-dashed border-white/20 bg-black/20 p-6 text-center text-slate-100 transition-colors",
+        isDragging && "border-cyan-300 bg-cyan-400/10",
         disabled && "pointer-events-none opacity-60",
       )}
       onDragEnter={() => setIsDragging(true)}
@@ -38,7 +38,7 @@ export function VideoDropzone({ disabled = false, onFileSelected }: VideoDropzon
       <div className="space-y-3">
         <div>
           <p className="font-medium">Drop a video here</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-400">
             MP4 and WebM work across modern browsers. MOV is supported in Safari when its codec is compatible.
           </p>
         </div>
