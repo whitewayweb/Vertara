@@ -11,11 +11,14 @@ interface CanvasVideoPreviewProps {
   canvasLayout?: CanvasLayout;
   className?: string;
   hook?: HookSettings;
+  isPlaying?: boolean;
+  onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
+  seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
 }
 
-export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, hook, playback, sourceUrl }: CanvasVideoPreviewProps) {
+export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, hook, isPlaying, onPlaybackTimeChange, playback, seekRequest, sourceUrl }: CanvasVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -23,15 +26,19 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
       <PlaybackVideo
         aria-hidden="true"
         className="absolute inset-0 h-full w-full scale-110 object-cover"
+        isPlaying={isPlaying}
         playback={playback}
+        seekRequest={seekRequest}
         sourceUrl={sourceUrl}
         style={{ filter: `blur(${canvasLayout.backdropBlurPixels}px)`, opacity: canvasLayout.backdropOpacity }}
       />
       <div aria-hidden="true" className="absolute inset-0 bg-black" style={{ opacity: canvasLayout.dimOpacity }} />
       <PlaybackVideo
         className="relative h-full w-full object-contain"
-        onPlaybackTimeChange={setCurrentTime}
+        isPlaying={isPlaying}
+        onPlaybackTimeChange={(timeSeconds) => { setCurrentTime(timeSeconds); onPlaybackTimeChange?.(timeSeconds); }}
         playback={playback}
+        seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
       {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder /> : null}

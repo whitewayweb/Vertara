@@ -10,12 +10,15 @@ interface PosterVideoPreviewProps {
   className?: string;
   headline: string;
   hook?: HookSettings;
+  isPlaying?: boolean;
+  onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
+  seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
   subline: string;
 }
 
-export function PosterVideoPreview({ className, headline, hook, playback, sourceUrl, subline }: PosterVideoPreviewProps) {
+export function PosterVideoPreview({ className, headline, hook, isPlaying, onPlaybackTimeChange, playback, seekRequest, sourceUrl, subline }: PosterVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -27,8 +30,10 @@ export function PosterVideoPreview({ className, headline, hook, playback, source
       </div>
       <PlaybackVideo
         className="min-h-0 flex-1 rounded-md object-contain shadow-lg"
-        onPlaybackTimeChange={setCurrentTime}
+        isPlaying={isPlaying}
+        onPlaybackTimeChange={(timeSeconds) => { setCurrentTime(timeSeconds); onPlaybackTimeChange?.(timeSeconds); }}
         playback={playback}
+        seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
       {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder /> : null}

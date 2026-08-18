@@ -7,13 +7,15 @@ import type { PlaybackSettings } from "@/features/project/playback-settings";
 interface PlaybackVideoProps {
   ariaHidden?: boolean;
   className: string;
+  isPlaying?: boolean;
   onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
+  seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
   style?: CSSProperties;
 }
 
-export function PlaybackVideo({ ariaHidden = false, className, onPlaybackTimeChange, playback, sourceUrl, style }: PlaybackVideoProps) {
+export function PlaybackVideo({ ariaHidden = false, className, isPlaying = true, onPlaybackTimeChange, playback, seekRequest, sourceUrl, style }: PlaybackVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const seekToTrimStart = useCallback(() => {
@@ -26,10 +28,24 @@ export function PlaybackVideo({ ariaHidden = false, className, onPlaybackTimeCha
     seekToTrimStart();
   }, [seekToTrimStart, sourceUrl]);
 
+  useEffect(() => {
+    if (isPlaying) {
+      void videoRef.current?.play().catch(() => undefined);
+    } else {
+      videoRef.current?.pause();
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (seekRequest && videoRef.current) {
+      videoRef.current.currentTime = seekRequest.timeSeconds;
+    }
+  }, [seekRequest]);
+
   return (
     <video
       aria-hidden={ariaHidden}
-      autoPlay
+      autoPlay={false}
       className={className}
       muted={playback.muted}
       onLoadedMetadata={seekToTrimStart}
