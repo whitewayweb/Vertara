@@ -1,5 +1,6 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
+import { getBrowserExportCapability } from "@/features/export/export-capabilities";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
@@ -29,8 +30,9 @@ export class ExportCancelledError extends Error {
 
 export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Blob> {
   throwIfAborted(request.abortSignal);
-  if (!("VideoEncoder" in window) || !("VideoFrame" in window)) {
-    throw new Error("This browser cannot create a local MP4. Use a current Chrome or Safari browser.");
+  const capability = getBrowserExportCapability();
+  if (capability.level === "unsupported") {
+    throw new Error(capability.message);
   }
 
   const video = await loadVideo(request.sourceUrl);

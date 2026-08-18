@@ -11,6 +11,8 @@ export interface ExportCapabilityEnvironment {
   supportsVideoFrame: boolean;
 }
 
+let browserCapability: ExportCapability | undefined;
+
 export function assessExportCapability(
   environment: ExportCapabilityEnvironment,
 ): ExportCapability {
@@ -40,9 +42,11 @@ export function assessExportCapability(
 }
 
 export function getBrowserExportCapability(): ExportCapability {
-  return assessExportCapability({
+  browserCapability ??= assessExportCapability({
     hardwareConcurrency: navigator.hardwareConcurrency,
     supportsVideoEncoder: "VideoEncoder" in window,
     supportsVideoFrame: "VideoFrame" in window,
   });
+
+  return browserCapability;
 }

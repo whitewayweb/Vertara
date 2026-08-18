@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 import {
   getBrowserExportCapability,
   type ExportCapability,
-} from "@/features/media/export-capabilities";
+} from "@/features/export/export-capabilities";
 
 export function ExportCapabilityNotice() {
   const capability = useSyncExternalStore<ExportCapability | undefined>(
