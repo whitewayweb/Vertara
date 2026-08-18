@@ -32,26 +32,15 @@ const formatByExtension = {
   mov: "mov",
   mp4: "mp4",
   webm: "webm",
-  m4v: "other",
-  mkv: "other",
-  avi: "other",
-  mpeg: "other",
-  mpg: "other",
-  mts: "other",
-  m2ts: "other",
-  ts: "other",
-  wmv: "other",
-  flv: "other",
-  "3gp": "other",
-  "3g2": "other",
 } as const satisfies Record<string, SupportedVideoFormat>;
 
 const mimeTypesByFormat: Record<SupportedVideoFormat, ReadonlySet<string>> = {
   mov: new Set(["video/quicktime"]),
   mp4: new Set(["video/mp4"]),
   webm: new Set(["video/webm"]),
-  other: new Set(),
 };
+
+const metadataTimeoutMilliseconds = 10_000;
 
 function getFormat(fileName: string): SupportedVideoFormat | undefined {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -60,10 +49,7 @@ function getFormat(fileName: string): SupportedVideoFormat | undefined {
 
 export function validateVideoFile(file: Pick<File, "name" | "type">): MediaInspectionResult | undefined {
   const format = getFormat(file.name);
-  const hasMatchingMimeType =
-    file.type === "" ||
-    (format === "other" && file.type.startsWith("video/")) ||
-    (format ? mimeTypesByFormat[format].has(file.type) : file.type.startsWith("video/"));
+  const hasMatchingMimeType = file.type === "" || (format ? mimeTypesByFormat[format].has(file.type) : false);
 
   if (format && hasMatchingMimeType) {
     return undefined;
@@ -73,7 +59,7 @@ export function validateVideoFile(file: Pick<File, "name" | "type">): MediaInspe
     ok: false,
     error: {
       code: "unsupported-file",
-      message: "Choose a video file. MP4, WebM, and browser-compatible MOV open directly; other formats can be converted locally.",
+      message: "Choose an MP4 or WebM video. MOV is supported only when its codec works in your browser.",
     },
   };
 }
@@ -90,17 +76,17 @@ function getUnreadableMediaError(_fileName: string): MediaInspectionResult {
   return {
     ok: false,
     error: {
-      code: "unsupported-codec",
-      message: "This video needs local conversion before it can be edited.",
+      code: "metadata-load-failed",
+      message: "This video cannot be read by your browser. Choose an H.264/AAC MP4 or a compatible WebM file.",
     },
   };
 }
 
 function createDescriptor(file: File, video: VideoMetadataElement): MediaInspectionResult {
-  const format = getFormat(file.name) ?? "other";
+  const format = getFormat(file.name);
   const { duration, videoHeight: height, videoWidth: width } = video;
 
-  if (!Number.isFinite(duration) || duration <= 0 || width <= 0 || height <= 0) {
+  if (!format || !Number.isFinite(duration) || duration <= 0 || width <= 0 || height <= 0) {
     return getUnreadableMediaError(file.name);
   }
 
@@ -139,7 +125,13 @@ export async function inspectMediaFile(
   const video = dependencies.createVideoElement();
 
   return new Promise((resolve) => {
+    let isSettled = false;
+    const metadataTimeout = setTimeout(() => {
+      finish(getUnreadableMediaError(file.name));
+    }, metadataTimeoutMilliseconds);
+
     const cleanUp = () => {
+      clearTimeout(metadataTimeout);
       video.onerror = null;
       video.onloadedmetadata = null;
       video.removeAttribute("src");
@@ -147,15 +139,21 @@ export async function inspectMediaFile(
       dependencies.revokeObjectUrl(url);
     };
 
-    video.onerror = () => {
+    const finish = (result: MediaInspectionResult) => {
+      if (isSettled) {
+        return;
+      }
+      isSettled = true;
       cleanUp();
-      resolve(getUnreadableMediaError(file.name));
+      resolve(result);
+    };
+
+    video.onerror = () => {
+      finish(getUnreadableMediaError(file.name));
     };
 
     video.onloadedmetadata = () => {
-      const result = createDescriptor(file, video);
-      cleanUp();
-      resolve(result);
+      finish(createDescriptor(file, video));
     };
 
     video.muted = true;

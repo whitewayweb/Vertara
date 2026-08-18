@@ -8,7 +8,6 @@ export default defineConfig([
     "out/**",
     "coverage/**",
     "node_modules/**",
-    "public/ffmpeg/**",
     "next-env.d.ts",
   ]),
 ]);

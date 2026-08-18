@@ -26,7 +26,7 @@ export function VideoFileInput({ disabled = false, onFileSelected }: VideoFileIn
     >
       Choose a video
       <input
-        accept="video/*,.mp4,.webm,.mov,.m4v,.mkv,.avi,.mpeg,.mpg,.mts,.m2ts,.ts,.wmv,.flv,.3gp,.3g2"
+        accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
         className="sr-only"
         disabled={disabled}
         id={inputId}

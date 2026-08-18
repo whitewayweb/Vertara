@@ -1,4 +1,4 @@
-export type SupportedVideoFormat = "mp4" | "webm" | "mov" | "other";
+export type SupportedVideoFormat = "mp4" | "webm" | "mov";
 
 export type AudioAvailability = "available" | "unavailable" | "unknown";
 
@@ -19,8 +19,7 @@ type MediaInspectionErrorCode =
   | "unsupported-file"
   | "unsupported-codec"
   | "invalid-metadata"
-  | "metadata-load-failed"
-  | "compatibility-conversion-failed";
+  | "metadata-load-failed";
 
 interface MediaInspectionError {
   code: MediaInspectionErrorCode;
