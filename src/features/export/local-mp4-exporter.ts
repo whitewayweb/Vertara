@@ -45,6 +45,7 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
   if (!context) throw new Error("This browser cannot prepare the export canvas.");
 
   const fps = 30;
+  const frameDurationMicroseconds = Math.round(1_000_000 / fps);
   const frameCount = Math.max(1, Math.ceil((request.playback.trimEndSeconds - request.playback.trimStartSeconds) * fps));
   const target = new ArrayBufferTarget();
   const muxer = new Muxer({
@@ -70,7 +71,13 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
 
   let encoderError: Error | undefined;
   const encoder = new VideoEncoder({
-    output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+    output: (chunk, metadata) => {
+      try {
+        muxer.addVideoChunk(chunk, metadata);
+      } catch (error) {
+        encoderError = error instanceof Error ? error : new Error("The browser could not package an encoded video frame.");
+      }
+    },
     error: (error) => {
       encoderError = error;
     },
@@ -87,7 +94,10 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
       await seek(video, request.playback.trimStartSeconds + frameIndex / fps);
       throwIfAborted(request.abortSignal);
       drawFrame(context, video, request);
-      const frame = new VideoFrame(canvas, { timestamp: Math.round((frameIndex * 1_000_000) / fps) });
+      const frame = new VideoFrame(canvas, {
+        duration: frameDurationMicroseconds,
+        timestamp: frameIndex * frameDurationMicroseconds,
+      });
       encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 });
       frame.close();
 

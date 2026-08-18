@@ -45,7 +45,7 @@ export function ImportPanel() {
         <div className="mt-8 rounded-2xl border border-white/10 bg-[#13171e] p-2 shadow-2xl shadow-black/30"><VideoDropzone disabled={isInspecting} onFileSelected={handleFileSelected} /></div>
         <div className="mt-4"><ExportCapabilityNotice /></div>
       </div> : null}
-      {selectedFileName ? (
+      {selectedFileName && !result?.ok ? (
         <p className="text-sm text-slate-400">
           Filename: <span className="font-medium text-slate-200">{selectedFileName}</span>
         </p>
