@@ -9,6 +9,7 @@ import type { PosterLayout } from "@/features/render/poster-layout";
 export type ExportLayoutMode = "canvas" | "focus" | "poster";
 
 export interface LocalMp4ExportRequest {
+  abortSignal?: AbortSignal;
   canvasLayout: CanvasLayout;
   focusLayout: FocusLayout;
   mode: ExportLayoutMode;
@@ -19,7 +20,15 @@ export interface LocalMp4ExportRequest {
   sourceUrl: string;
 }
 
+export class ExportCancelledError extends Error {
+  constructor() {
+    super("Export cancelled.");
+    this.name = "ExportCancelledError";
+  }
+}
+
 export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Blob> {
+  throwIfAborted(request.abortSignal);
   if (!("VideoEncoder" in window) || !("VideoFrame" in window)) {
     throw new Error("This browser cannot create a local MP4. Use a current Chrome or Safari browser.");
   }
@@ -66,11 +75,13 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
 
   try {
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      throwIfAborted(request.abortSignal);
       if (encoderError) {
         throw new Error(`The browser encoder stopped: ${encoderError.message}`);
       }
 
       await seek(video, request.playback.trimStartSeconds + frameIndex / fps);
+      throwIfAborted(request.abortSignal);
       drawFrame(context, video, request);
       const frame = new VideoFrame(canvas, { timestamp: Math.round((frameIndex * 1_000_000) / fps) });
       encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 });
@@ -83,6 +94,7 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
     }
 
     await encoder.flush();
+    throwIfAborted(request.abortSignal);
     if (encoderError) {
       throw new Error(`The browser encoder stopped: ${encoderError.message}`);
     }
@@ -93,6 +105,12 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
       encoder.close();
     }
     video.remove();
+  }
+}
+
+function throwIfAborted(abortSignal: AbortSignal | undefined): void {
+  if (abortSignal?.aborted) {
+    throw new ExportCancelledError();
   }
 }
 
