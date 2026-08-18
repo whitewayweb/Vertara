@@ -59,7 +59,7 @@ describe("validateVideoFile", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: { code: "metadata-load-failed", message: expect.stringContaining("cannot be read") },
+      error: { code: "metadata-load-failed", message: expect.stringContaining("Try Safari") },
     });
   });
 });

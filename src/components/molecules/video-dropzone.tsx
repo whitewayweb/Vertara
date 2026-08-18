@@ -38,7 +38,9 @@ export function VideoDropzone({ disabled = false, onFileSelected }: VideoDropzon
       <div className="space-y-3">
         <div>
           <p className="font-medium">Drop a video here</p>
-          <p className="text-sm text-muted-foreground">Supports MP4 and WebM, plus MOV when its codec is supported by your browser.</p>
+          <p className="text-sm text-muted-foreground">
+            MP4 and WebM work across modern browsers. MOV is supported in Safari when its codec is compatible.
+          </p>
         </div>
         <VideoFileInput disabled={disabled} onFileSelected={onFileSelected} />
       </div>

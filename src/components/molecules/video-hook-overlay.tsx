@@ -1,5 +1,6 @@
 import type { HookPosition, HookSettings } from "@/features/project/hook-settings";
 import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 
 interface VideoHookOverlayProps {
   className?: string;
@@ -19,8 +20,15 @@ export function VideoHookOverlay({ className, hook, isVisible, showPlaceholder =
   if (!hook.enabled || !text || !isVisible) return null;
 
   return (
-    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-x-[7%] z-10 text-center", positionClasses[hook.position], className)}>
-      <span className={cn("bg-black/80 px-2 py-1 text-lg font-extrabold leading-tight text-white shadow-sm sm:text-xl", !hook.text.trim() && "italic text-white/80")}>
+    <div
+      aria-hidden="true"
+      className={cn("pointer-events-none absolute inset-x-[7%] z-10 text-center", positionClasses[hook.position], className)}
+      style={{ containerType: "inline-size" }}
+    >
+      <span
+        className={cn("px-2 py-1 font-extrabold leading-tight text-white shadow-sm", !hook.text.trim() && "italic text-white/80")}
+        style={{ backgroundColor: hook.backgroundColor, fontSize: `${hook.fontSizePercent}cqw` } as CSSProperties}
+      >
         {text}
       </span>
     </div>

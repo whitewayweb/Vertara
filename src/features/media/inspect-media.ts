@@ -72,12 +72,15 @@ function getAudioAvailability(video: VideoMetadataElement): AudioAvailability {
   return video.audioTracks.length > 0 ? "available" : "unavailable";
 }
 
-function getUnreadableMediaError(_fileName: string): MediaInspectionResult {
+function getUnreadableMediaError(fileName: string): MediaInspectionResult {
+  const isMov = getFormat(fileName) === "mov";
   return {
     ok: false,
     error: {
       code: "metadata-load-failed",
-      message: "This video cannot be read by your browser. Choose an H.264/AAC MP4 or a compatible WebM file.",
+      message: isMov
+        ? "This MOV cannot be read by this browser. Try Safari, or use an H.264/AAC MP4 or compatible WebM file."
+        : "This video cannot be read by your browser. Choose an H.264/AAC MP4 or a compatible WebM file.",
     },
   };
 }

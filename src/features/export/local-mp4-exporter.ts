@@ -172,7 +172,7 @@ function drawHook(
 ): void {
   if (!hook.enabled || !hook.text.trim() || elapsedSeconds >= hook.durationSeconds) return;
 
-  const fontSize = Math.round(width * 0.07);
+  const fontSize = Math.round(width * (hook.fontSizePercent / 100));
   const maxWidth = width * 0.86;
   const lines = wrapText(context, hook.text.trim(), `800 ${fontSize}px sans-serif`, maxWidth);
   const lineHeight = Math.round(fontSize * 1.2);
@@ -183,7 +183,7 @@ function drawHook(
   context.font = `800 ${fontSize}px sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "top";
-  context.fillStyle = "rgba(0, 0, 0, 0.8)";
+  context.fillStyle = hook.backgroundColor;
   context.fillRect(width * 0.055, y - fontSize * 0.18, width * 0.89, textHeight + fontSize * 0.36);
   context.fillStyle = "white";
   lines.forEach((line, index) => context.fillText(line, width / 2, y + index * lineHeight));
