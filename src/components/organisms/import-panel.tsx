@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { VideoDropzone } from "@/components/molecules/video-dropzone";
+import { ExportCapabilityNotice } from "@/components/molecules/export-capability-notice";
 import { inspectMediaFile } from "@/features/media/inspect-media";
 import { convertMovToCompatibleMp4 } from "@/features/media/transcode-mov";
 import type { MediaInspectionResult } from "@/features/media/media.types";
@@ -75,6 +76,7 @@ export function ImportPanel() {
         </h1>
         <p className="text-muted-foreground">Your video stays on this device.</p>
       </div>
+      <ExportCapabilityNotice />
       <VideoDropzone disabled={isInspecting || isConverting} onFileSelected={handleFileSelected} />
       {isInspecting ? <p aria-live="polite" className="text-sm text-muted-foreground">Reading metadata…</p> : null}
       {isConverting ? (
