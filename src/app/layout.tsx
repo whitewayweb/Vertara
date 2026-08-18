@@ -5,7 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Vertara",
-  description: "Transform any video into its vertical story.",
+  description:
+    "Reframe your video for social-ready vertical, square, and landscape edits—privately, on your device.",
 };
 
 interface RootLayoutProps {
