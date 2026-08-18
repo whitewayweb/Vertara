@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
+import { VideoHookOverlay } from "@/components/molecules/video-hook-overlay";
 import { PlaybackVideo } from "@/components/atoms/playback-video";
+import type { HookSettings } from "@/features/project/hook-settings";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import {
   createFocusLayout,
@@ -10,12 +14,14 @@ import {
 
 interface FocusEditorProps {
   layout: FocusLayout;
+  hook: HookSettings;
   onChange(layout: FocusLayout): void;
   playback: PlaybackSettings;
   sourceUrl: string;
 }
 
-export function FocusEditor({ layout, onChange, playback, sourceUrl }: FocusEditorProps) {
+export function FocusEditor({ hook, layout, onChange, playback, sourceUrl }: FocusEditorProps) {
+  const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
   function updatePanX(panX: number) {
     onChange(createFocusLayout(panX, layout.zoom));
   }
@@ -33,9 +39,10 @@ export function FocusEditor({ layout, onChange, playback, sourceUrl }: FocusEdit
         </div>
         <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">9:16</span>
       </div>
-      <div className="mx-auto mt-5 aspect-[9/16] w-full max-w-64 overflow-hidden rounded-lg bg-black shadow-sm">
+      <div className="relative mx-auto mt-5 aspect-[9/16] w-full max-w-64 overflow-hidden rounded-lg bg-black shadow-sm">
         <PlaybackVideo
           className="h-full w-full object-cover"
+          onPlaybackTimeChange={setCurrentTime}
           playback={playback}
           sourceUrl={sourceUrl}
           style={{
@@ -43,6 +50,7 @@ export function FocusEditor({ layout, onChange, playback, sourceUrl }: FocusEdit
             transform: `scale(${layout.zoom})`,
           }}
         />
+        <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} />
       </div>
       <div className="mt-5 space-y-4">
         <label className="grid gap-2 text-sm font-medium">

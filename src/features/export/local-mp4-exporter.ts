@@ -2,6 +2,7 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
 import { getBrowserExportCapability } from "@/features/export/export-capabilities";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
+import type { HookSettings } from "@/features/project/hook-settings";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
@@ -13,6 +14,7 @@ export interface LocalMp4ExportRequest {
   abortSignal?: AbortSignal;
   canvasLayout: CanvasLayout;
   focusLayout: FocusLayout;
+  hook: HookSettings;
   mode: ExportLayoutMode;
   onProgress(progress: number): void;
   output: OutputSettings;
@@ -146,16 +148,65 @@ function drawFrame(context: CanvasRenderingContext2D, video: HTMLVideoElement, r
     context.fillStyle = gradient; context.fillRect(0, 0, width, height);
     context.fillStyle = "white"; context.font = `600 ${Math.round(width * 0.07)}px sans-serif`; context.fillText(request.posterLayout.headline, width * 0.06, height * 0.12, width * 0.88);
     drawContain(context, video, width * 0.06, height * 0.28, width * 0.88, height * 0.62);
+    drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
     return;
   }
   if (request.mode === "focus") {
     drawCover(context, video, 0, 0, width, height, request.focusLayout.panX, request.focusLayout.zoom);
+    drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
     return;
   }
   context.save(); context.filter = `blur(${request.canvasLayout.backdropBlurPixels}px)`; context.globalAlpha = request.canvasLayout.backdropOpacity;
   drawCover(context, video, 0, 0, width, height, 50, 1.1); context.restore();
   context.fillStyle = `rgba(0,0,0,${request.canvasLayout.dimOpacity})`; context.fillRect(0, 0, width, height);
   drawContain(context, video, 0, 0, width, height);
+  drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
+}
+
+function drawHook(
+  context: CanvasRenderingContext2D,
+  hook: HookSettings,
+  elapsedSeconds: number,
+  width: number,
+  height: number,
+): void {
+  if (!hook.enabled || !hook.text.trim() || elapsedSeconds >= hook.durationSeconds) return;
+
+  const fontSize = Math.round(width * 0.07);
+  const maxWidth = width * 0.86;
+  const lines = wrapText(context, hook.text.trim(), `800 ${fontSize}px sans-serif`, maxWidth);
+  const lineHeight = Math.round(fontSize * 1.2);
+  const textHeight = lines.length * lineHeight;
+  const y = hook.position === "top" ? height * 0.09 : hook.position === "center" ? (height - textHeight) / 2 : height * 0.91 - textHeight;
+
+  context.save();
+  context.font = `800 ${fontSize}px sans-serif`;
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  context.fillStyle = "rgba(0, 0, 0, 0.8)";
+  context.fillRect(width * 0.055, y - fontSize * 0.18, width * 0.89, textHeight + fontSize * 0.36);
+  context.fillStyle = "white";
+  lines.forEach((line, index) => context.fillText(line, width / 2, y + index * lineHeight));
+  context.restore();
+}
+
+function wrapText(context: CanvasRenderingContext2D, text: string, font: string, maxWidth: number): string[] {
+  context.font = font;
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (currentLine && context.measureText(candidate).width > maxWidth) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
 }
 
 function drawContain(context: CanvasRenderingContext2D, video: HTMLVideoElement, x: number, y: number, width: number, height: number): void {

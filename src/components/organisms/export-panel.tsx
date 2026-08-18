@@ -9,6 +9,7 @@ import {
   type ExportLayoutMode,
 } from "@/features/export/local-mp4-exporter";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
+import type { HookSettings } from "@/features/project/hook-settings";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
@@ -17,6 +18,7 @@ import type { PosterLayout } from "@/features/render/poster-layout";
 interface ExportPanelProps {
   canvasLayout: CanvasLayout;
   focusLayout: FocusLayout;
+  hook: HookSettings;
   mode: ExportLayoutMode;
   playback: PlaybackSettings;
   posterLayout: PosterLayout;
@@ -28,6 +30,7 @@ const exportOptions = Object.values(outputPresets);
 export function ExportPanel({
   canvasLayout,
   focusLayout,
+  hook,
   mode,
   playback,
   posterLayout,
@@ -49,6 +52,7 @@ export function ExportPanel({
         abortSignal: abortController.signal,
         canvasLayout,
         focusLayout,
+        hook,
         mode,
         onProgress: setProgress,
         output: outputPresets[preset],

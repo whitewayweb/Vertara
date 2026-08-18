@@ -2,17 +2,19 @@
 
 import { Input } from "@/components/ui/input";
 import { PosterVideoPreview } from "@/components/molecules/poster-video-preview";
+import type { HookSettings } from "@/features/project/hook-settings";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import type { PosterLayout } from "@/features/render/poster-layout";
 
 interface PosterEditorProps {
+  hook: HookSettings;
   layout: PosterLayout;
   onChange(layout: PosterLayout): void;
   playback: PlaybackSettings;
   sourceUrl: string;
 }
 
-export function PosterEditor({ layout, onChange, playback, sourceUrl }: PosterEditorProps) {
+export function PosterEditor({ hook, layout, onChange, playback, sourceUrl }: PosterEditorProps) {
   return (
     <section aria-labelledby="poster-editor-title" className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between gap-4">
@@ -25,6 +27,7 @@ export function PosterEditor({ layout, onChange, playback, sourceUrl }: PosterEd
       <PosterVideoPreview
         className="mx-auto mt-5 aspect-[9/16] w-full max-w-64 rounded-lg shadow-sm"
         headline={layout.headline}
+        hook={hook}
         playback={playback}
         sourceUrl={sourceUrl}
         subline={layout.subline}

@@ -7,12 +7,13 @@ import type { PlaybackSettings } from "@/features/project/playback-settings";
 interface PlaybackVideoProps {
   ariaHidden?: boolean;
   className: string;
+  onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
   sourceUrl: string;
   style?: CSSProperties;
 }
 
-export function PlaybackVideo({ ariaHidden = false, className, playback, sourceUrl, style }: PlaybackVideoProps) {
+export function PlaybackVideo({ ariaHidden = false, className, onPlaybackTimeChange, playback, sourceUrl, style }: PlaybackVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const seekToTrimStart = useCallback(() => {
@@ -33,6 +34,9 @@ export function PlaybackVideo({ ariaHidden = false, className, playback, sourceU
       muted={playback.muted}
       onLoadedMetadata={seekToTrimStart}
       onTimeUpdate={() => {
+        if (videoRef.current) {
+          onPlaybackTimeChange?.(videoRef.current.currentTime);
+        }
         if (videoRef.current && videoRef.current.currentTime >= playback.trimEndSeconds) {
           seekToTrimStart();
         }

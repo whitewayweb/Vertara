@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CanvasVideoPreview } from "@/components/molecules/canvas-video-preview";
 import { PosterVideoPreview } from "@/components/molecules/poster-video-preview";
 import { createPlaybackSettings, type PlaybackSettings } from "@/features/project/playback-settings";
+import { createHookSettings, type HookSettings } from "@/features/project/hook-settings";
 import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
 import { defaultFocusLayout, type FocusLayout } from "@/features/render/focus-layout";
 import { defaultPosterLayout, type PosterLayout } from "@/features/render/poster-layout";
@@ -16,6 +17,7 @@ import { CanvasEditor } from "./canvas-editor";
 import { EditSettingsPanel } from "./edit-settings-panel";
 import { ExportPanel } from "./export-panel";
 import { FocusEditor } from "./focus-editor";
+import { HookSettingsPanel } from "./hook-settings-panel";
 import { PosterEditor } from "./poster-editor";
 
 type LayoutMode = "canvas" | "focus" | "poster";
@@ -35,6 +37,7 @@ export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) 
   const [selectedMode, setSelectedMode] = useState<LayoutMode>("canvas");
   const [isSelectionConfirmed, setIsSelectionConfirmed] = useState(false);
   const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
+  const [hook, setHook] = useState<HookSettings>(() => createHookSettings());
   const [canvasLayout, setCanvasLayout] = useState<CanvasLayout>(defaultCanvasLayout);
   const [focusLayout, setFocusLayout] = useState<FocusLayout>(defaultFocusLayout);
   const [posterLayout, setPosterLayout] = useState<PosterLayout>(defaultPosterLayout);
@@ -58,6 +61,7 @@ export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) 
           <SelectedLayoutEditor
             canvasLayout={canvasLayout}
             focusLayout={focusLayout}
+            hook={hook}
             mode={selectedMode}
             onCanvasLayoutChange={setCanvasLayout}
             onFocusLayoutChange={setFocusLayout}
@@ -66,7 +70,11 @@ export function LayoutEditor({ durationSeconds, sourceUrl }: LayoutEditorProps) 
             posterLayout={posterLayout}
             sourceUrl={sourceUrl}
           />
-          <div className="space-y-4"><EditSettingsPanel durationSeconds={durationSeconds} onChange={(nextSettings) => setPlayback(createPlaybackSettings(durationSeconds, nextSettings))} settings={playback} /><ExportPanel canvasLayout={canvasLayout} focusLayout={focusLayout} mode={selectedMode} playback={playback} posterLayout={posterLayout} sourceUrl={sourceUrl} /></div>
+          <div className="space-y-4">
+            <EditSettingsPanel durationSeconds={durationSeconds} onChange={(nextSettings) => setPlayback(createPlaybackSettings(durationSeconds, nextSettings))} settings={playback} />
+            <HookSettingsPanel onChange={(nextSettings) => setHook(createHookSettings(nextSettings))} settings={hook} />
+            <ExportPanel canvasLayout={canvasLayout} focusLayout={focusLayout} hook={hook} mode={selectedMode} playback={playback} posterLayout={posterLayout} sourceUrl={sourceUrl} />
+          </div>
         </div>
       </section>
     );
@@ -137,6 +145,7 @@ function LayoutThumbnail({ mode, playback, sourceUrl }: LayoutThumbnailProps) {
 interface SelectedLayoutEditorProps {
   canvasLayout: CanvasLayout;
   focusLayout: FocusLayout;
+  hook: HookSettings;
   mode: LayoutMode;
   onCanvasLayoutChange(layout: CanvasLayout): void;
   onFocusLayoutChange(layout: FocusLayout): void;
@@ -149,6 +158,7 @@ interface SelectedLayoutEditorProps {
 function SelectedLayoutEditor({
   canvasLayout,
   focusLayout,
+  hook,
   mode,
   onCanvasLayoutChange,
   onFocusLayoutChange,
@@ -158,12 +168,12 @@ function SelectedLayoutEditor({
   sourceUrl,
 }: SelectedLayoutEditorProps) {
   if (mode === "canvas") {
-    return <CanvasEditor layout={canvasLayout} onChange={onCanvasLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
+    return <CanvasEditor hook={hook} layout={canvasLayout} onChange={onCanvasLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
   }
 
   if (mode === "focus") {
-    return <FocusEditor layout={focusLayout} onChange={onFocusLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
+    return <FocusEditor hook={hook} layout={focusLayout} onChange={onFocusLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
   }
 
-  return <PosterEditor layout={posterLayout} onChange={onPosterLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
+  return <PosterEditor hook={hook} layout={posterLayout} onChange={onPosterLayoutChange} playback={playback} sourceUrl={sourceUrl} />;
 }
