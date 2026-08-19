@@ -7,5 +7,7 @@ Vertara is browser-only: it never uploads or converts source video. MP4 and WebM
 
 ## Product documentation
 
+- [Feature catalogue](docs/features/README.md) — implemented capabilities, source-of-truth modules, limits, and AI-tool extension rules.
+- [Architecture guide](docs/architecture.md) — current runtime boundaries, module ownership, media flow, and AI-tool reading order.
 - [Editor workspace direction](docs/design/vertara-editor-dark-workspace.md) — approved desktop editor interaction and visual guidance.
 - [Video speed](docs/features/video-speed.md) — speed-control behaviour, implementation boundary, export semantics, and known limitation.
