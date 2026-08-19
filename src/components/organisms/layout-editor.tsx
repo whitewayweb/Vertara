@@ -3,13 +3,12 @@
 import { useRef, useState } from "react";
 import {
   AudioLines,
-  Captions,
   Clapperboard,
   ImageIcon,
   LayoutTemplate,
   Pause,
   Play,
-  Settings2,
+  Settings2, Trash2, Type,
   Volume2,
 } from "lucide-react";
 
@@ -24,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
-import { createHookSettings } from "@/features/project/hook-settings";
+import { createTextOverlay, textFontFamilies, type TextOverlay } from "@/features/project/text-overlays";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
 import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
@@ -33,7 +32,7 @@ import { defaultPosterLayout } from "@/features/render/poster-layout";
 import { formatTime } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 
-type InspectorSection = "frame" | "trim" | "hook" | "export";
+type InspectorSection = "frame" | "trim" | "export";
 
 interface LayoutEditorProps {
   durationSeconds: number;
@@ -47,6 +46,30 @@ const layoutOptions: Array<{ description: string; mode: ExportLayoutMode; title:
   { mode: "poster", title: "Poster", description: "Add a branded story card" },
 ];
 
+interface TextOverlayToolbarProps {
+  durationSeconds: number;
+  onAdd(): void;
+  onChange(id: string, change: Partial<TextOverlay>): void;
+  onDelete(id: string): void;
+  selected?: TextOverlay;
+}
+
+function TextOverlayToolbar({ durationSeconds, onAdd, onChange, onDelete, selected }: TextOverlayToolbarProps) {
+  return <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#171b22]/95 p-2 shadow-lg" role="toolbar" aria-label="Text editor">
+    <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={onAdd} size="sm"><Type /> Add text</Button>
+    {selected ? <>
+      <Textarea aria-label="Selected text" className="min-h-8 min-w-32 flex-1 resize-none border-white/10 bg-black/20 py-1 text-white" maxLength={280} onChange={(event) => onChange(selected.id, { text: event.target.value })} placeholder="Write something" rows={1} value={selected.text} />
+      <label className="flex items-center gap-1 text-xs text-slate-400">Text <input aria-label="Text colour" className="size-7 cursor-pointer rounded border border-white/10 bg-transparent p-0.5" onChange={(event) => onChange(selected.id, { color: event.target.value })} type="color" value={selected.color} /></label>
+      <label className="flex items-center gap-1 text-xs text-slate-400">Fill <input aria-label="Text background colour" className="size-7 cursor-pointer rounded border border-white/10 bg-transparent p-0.5" onChange={(event) => onChange(selected.id, { backgroundColor: event.target.value })} type="color" value={selected.backgroundColor} /></label>
+      <Select onValueChange={(value) => value && onChange(selected.id, { fontFamily: value as TextOverlay["fontFamily"] })} value={selected.fontFamily}><SelectTrigger className="h-8 w-24 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textFontFamilies.map((family) => <SelectItem key={family} value={family}>{family}</SelectItem>)}</SelectContent></Select>
+      <label className="flex items-center gap-1 text-xs text-slate-400">Size <input aria-label="Text size" className="w-16 accent-cyan-300" max="12" min="4" onChange={(event) => onChange(selected.id, { fontSizePercent: Number(event.target.value) })} step="1" type="range" value={selected.fontSizePercent} /></label>
+      <label className="flex items-center gap-1 text-xs text-slate-400">From <input aria-label="Text start time" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={durationSeconds} min="0" onChange={(event) => onChange(selected.id, { startSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.startSeconds} />s</label>
+      <label className="flex items-center gap-1 text-xs text-slate-400">For <input aria-label="Text duration" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={Math.max(0.5, durationSeconds - selected.startSeconds)} min="0.5" onChange={(event) => onChange(selected.id, { durationSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.durationSeconds} />s</label>
+      <Button aria-label="Delete selected text" className="text-slate-300 hover:bg-red-400/15 hover:text-red-200" onClick={() => onDelete(selected.id)} size="icon-sm" variant="ghost"><Trash2 /></Button>
+    </> : <p className="px-1 text-xs text-slate-400">Add a layer, then edit it here or drag it in the preview.</p>}
+  </div>;
+}
+
 export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditorProps) {
   const [activeSection, setActiveSection] = useState<InspectorSection>("frame");
   const [canvasLayout, setCanvasLayout] = useState(defaultCanvasLayout);
@@ -54,7 +77,8 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
   const [exportError, setExportError] = useState<string>();
   const [exportProgress, setExportProgress] = useState<number>();
   const [focusLayout, setFocusLayout] = useState(defaultFocusLayout);
-  const [hook, setHook] = useState(createHookSettings());
+  const [overlays, setOverlays] = useState<TextOverlay[]>([]);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string>();
   const [isPlaying, setIsPlaying] = useState(false);
   const [mode, setMode] = useState<ExportLayoutMode>("canvas");
   const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
@@ -86,7 +110,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
         abortSignal: abortController.signal,
         canvasLayout,
         focusLayout,
-        hook,
+        overlays,
         mode,
         onProgress: setExportProgress,
         output: outputPresets[preset],
@@ -128,7 +152,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
         <aside className="min-h-0 overflow-y-auto border-r border-white/10 p-3">
           <nav aria-label="Editor tools" className="space-y-1">
             {[
-              [Clapperboard, "Media"], [LayoutTemplate, "Layouts"], [Captions, "Captions"], [ImageIcon, "Brand"],
+              [Clapperboard, "Media"], [LayoutTemplate, "Layouts"], [Type, "Text"], [ImageIcon, "Brand"],
             ].map(([Icon, label], index) => {
               const ToolIcon = Icon as typeof Clapperboard;
               return <Button className={cn("w-full justify-start gap-3", index === 0 && "bg-white/10 text-white hover:bg-white/15")} key={String(label)} variant="ghost"><ToolIcon className="size-4" />{String(label)}</Button>;
@@ -146,8 +170,9 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <div className="flex items-center gap-2 text-sm text-slate-400"><Settings2 className="size-4" /> Edit preview</div>
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6 sm:p-8">
-            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(61vh,39rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} hook={hook} isPlaying={isPlaying} mode={mode} onHookLayoutChange={(change) => setHook(createHookSettings({ ...hook, ...change }))} onPlaybackTimeChange={setCurrentTime} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} sourceUrl={sourceUrl} />
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
+            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => { const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)) }); setOverlays((current) => [...current, overlay]); setSelectedOverlayId(overlay.id); }} onChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { setOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
+            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
@@ -173,10 +198,6 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <AccordionItem value="trim">
               <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Trim &amp; audio</AccordionTrigger>
               <AccordionContent className="space-y-5 pb-5"><EditorRangeControl label="Starts at" max={Math.max(0, playback.trimEndSeconds - 0.1)} suffix="" value={playback.trimStartSeconds} onChange={(trimStartSeconds) => updatePlayback({ trimStartSeconds })} /><EditorRangeControl label="Ends at" min={Math.min(durationSeconds, playback.trimStartSeconds + 0.1)} max={durationSeconds} suffix="" value={playback.trimEndSeconds} onChange={(trimEndSeconds) => updatePlayback({ trimEndSeconds })} /><div className="space-y-2"><label className="text-sm font-medium" htmlFor="playback-speed">Speed</label><Select onValueChange={(value) => value && updatePlayback({ speed: Number(value) as PlaybackSpeed })} value={String(playback.speed)}><SelectTrigger className="h-11 w-full border-white/10 bg-black/20 text-left text-white" id="playback-speed"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{playbackSpeeds.map((speed) => <SelectItem key={speed} value={String(speed)}>{speed}×</SelectItem>)}</SelectContent></Select><p className="text-xs text-slate-500">Export: {formatTime(getExportDurationSeconds(playback))} at {playback.speed}×. Faster exports preserve Vertara’s rendered frames.</p></div><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 p-3 text-sm font-medium"><Checkbox checked={playback.muted} onCheckedChange={(checked) => updatePlayback({ muted: checked === true })} /> <AudioLines className="size-4 text-slate-400" /> Mute original audio</label></AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="hook">
-              <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Opening hook</AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-5"><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 p-3 text-sm font-medium"><Checkbox checked={hook.enabled} onCheckedChange={(checked) => setHook(createHookSettings({ ...hook, enabled: checked === true }))} /> Show intro text</label>{hook.enabled ? <><Textarea aria-label="Opening hook text" maxLength={90} onChange={(event) => setHook(createHookSettings({ ...hook, text: event.target.value }))} placeholder="Make the opening count" rows={3} value={hook.text} /><EditorRangeControl label="Shown for" max={5} min={0.5} step={0.5} suffix=" s" value={hook.durationSeconds} onChange={(durationSeconds) => setHook(createHookSettings({ ...hook, durationSeconds }))} /><EditorRangeControl label="Text size" max={12} min={4} suffix="%" value={hook.fontSizePercent} onChange={(fontSizePercent) => setHook(createHookSettings({ ...hook, fontSizePercent }))} /><label className="grid gap-2 text-sm font-medium">Background colour<span className="flex items-center gap-3 font-normal text-slate-400"><input aria-label="Hook background colour" className="h-10 w-14 cursor-pointer rounded border border-white/10 bg-transparent p-1" onChange={(event) => setHook(createHookSettings({ ...hook, backgroundColor: event.target.value }))} type="color" value={hook.backgroundColor} />{hook.backgroundColor.toUpperCase()}</span></label><p className="text-xs leading-5 text-slate-500">Drag the text to move it. Drag either edge of the text block to change its width.</p></> : <p className="text-xs leading-5 text-slate-500">Add a short message at the beginning of the exported video.</p>}</AccordionContent>
             </AccordionItem>
             <AccordionItem value="export">
               <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Export preset</AccordionTrigger>

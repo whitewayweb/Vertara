@@ -3,7 +3,7 @@ import { useState } from "react";
 import { VideoHookOverlay } from "@/components/molecules/video-hook-overlay";
 import { cn } from "@/lib/utils";
 import { PlaybackVideo } from "@/components/atoms/playback-video";
-import type { HookSettings } from "@/features/project/hook-settings";
+import { isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import { getOutputElapsedSeconds } from "@/features/project/playback-settings";
 import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
@@ -11,16 +11,18 @@ import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas
 interface CanvasVideoPreviewProps {
   canvasLayout?: CanvasLayout;
   className?: string;
-  hook?: HookSettings;
+  overlays: TextOverlay[];
   isPlaying?: boolean;
-  onHookLayoutChange?(change: Pick<HookSettings, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">): void;
+  onOverlayLayoutChange?(id: string, change: Pick<TextOverlay, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">): void;
+  onOverlaySelect?(id: string): void;
   onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
+  selectedOverlayId?: string;
   seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
 }
 
-export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, hook, isPlaying, onHookLayoutChange, onPlaybackTimeChange, playback, seekRequest, sourceUrl }: CanvasVideoPreviewProps) {
+export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, isPlaying, onOverlayLayoutChange, onOverlaySelect, onPlaybackTimeChange, overlays, playback, seekRequest, selectedOverlayId, sourceUrl }: CanvasVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -43,7 +45,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} onChange={onHookLayoutChange} showPlaceholder /> : null}
+      {overlays.map((overlay) => <VideoHookOverlay isSelected={overlay.id === selectedOverlayId} isVisible={isTextOverlayVisible(overlay, getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback))} key={overlay.id} onChange={(change) => onOverlayLayoutChange?.(overlay.id, change)} onSelect={() => onOverlaySelect?.(overlay.id)} overlay={overlay} />)}
     </div>
   );
 }

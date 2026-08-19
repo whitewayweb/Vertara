@@ -2,7 +2,7 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
 import { getBrowserExportCapability } from "@/features/export/export-capabilities";
 import { getOutputElapsedSeconds, type PlaybackSettings } from "@/features/project/playback-settings";
-import type { HookSettings } from "@/features/project/hook-settings";
+import { isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
@@ -14,7 +14,7 @@ export interface LocalMp4ExportRequest {
   abortSignal?: AbortSignal;
   canvasLayout: CanvasLayout;
   focusLayout: FocusLayout;
-  hook: HookSettings;
+  overlays: TextOverlay[];
   mode: ExportLayoutMode;
   onProgress(progress: number): void;
   output: OutputSettings;
@@ -170,48 +170,51 @@ function drawFrame(context: CanvasRenderingContext2D, video: HTMLVideoElement, r
     context.fillStyle = gradient; context.fillRect(0, 0, width, height);
     context.fillStyle = "white"; context.font = `600 ${Math.round(width * 0.07)}px sans-serif`; context.fillText(request.posterLayout.headline, width * 0.06, height * 0.12, width * 0.88);
     drawContain(context, video, width * 0.06, height * 0.28, width * 0.88, height * 0.62);
-    drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
+    drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
   if (request.mode === "focus") {
     drawCover(context, video, 0, 0, width, height, request.focusLayout.panX, request.focusLayout.zoom);
-    drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
+    drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
   context.save(); context.filter = `blur(${request.canvasLayout.backdropBlurPixels}px)`; context.globalAlpha = request.canvasLayout.backdropOpacity;
   drawCover(context, video, 0, 0, width, height, 50, 1.1); context.restore();
   context.fillStyle = `rgba(0,0,0,${request.canvasLayout.dimOpacity})`; context.fillRect(0, 0, width, height);
   drawContain(context, video, 0, 0, width, height);
-  drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
+  drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
 }
 
-function drawHook(
+function drawTextOverlays(context: CanvasRenderingContext2D, overlays: TextOverlay[], elapsedSeconds: number, width: number, height: number): void {
+  overlays.filter((overlay) => isTextOverlayVisible(overlay, elapsedSeconds)).forEach((overlay) => drawTextOverlay(context, overlay, width, height));
+}
+
+function drawTextOverlay(
   context: CanvasRenderingContext2D,
-  hook: HookSettings,
-  elapsedSeconds: number,
+  overlay: TextOverlay,
   width: number,
   height: number,
 ): void {
-  if (!hook.enabled || !hook.text.trim() || elapsedSeconds >= hook.durationSeconds) return;
-
-  const fontSize = Math.round(width * (hook.fontSizePercent / 100));
-  const maxWidth = width * (hook.widthPercent / 100) - fontSize * 0.36;
-  const lines = wrapText(context, hook.text.trim(), `800 ${fontSize}px sans-serif`, maxWidth);
+  const fontSize = Math.round(width * (overlay.fontSizePercent / 100));
+  const fontFamily = overlay.fontFamily === "mono" ? "monospace" : overlay.fontFamily === "serif" ? "serif" : "sans-serif";
+  const font = `800 ${fontSize}px ${fontFamily}`;
+  const maxWidth = width * (overlay.widthPercent / 100) - fontSize * 0.36;
+  const lines = wrapText(context, overlay.text.trim(), font, maxWidth);
   const lineHeight = Math.round(fontSize * 1.2);
   const textHeight = lines.length * lineHeight;
 
   context.save();
-  context.font = `800 ${fontSize}px sans-serif`;
+  context.font = font;
   context.textAlign = "center";
   context.textBaseline = "top";
   const padding = fontSize * 0.18;
-  const boxWidth = width * (hook.widthPercent / 100);
+  const boxWidth = width * (overlay.widthPercent / 100);
   const boxHeight = textHeight + padding * 2;
-  const x = width * (hook.horizontalPositionPercent / 100);
-  const y = height * (hook.verticalPositionPercent / 100) - boxHeight / 2;
-  context.fillStyle = hook.backgroundColor;
+  const x = width * (overlay.horizontalPositionPercent / 100);
+  const y = height * (overlay.verticalPositionPercent / 100) - boxHeight / 2;
+  context.fillStyle = overlay.backgroundColor;
   context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
-  context.fillStyle = "white";
+  context.fillStyle = overlay.color;
   lines.forEach((line, index) => context.fillText(line, x, y + padding + index * lineHeight));
   context.restore();
 }

@@ -30,7 +30,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 | Organisms | Editor state orchestration and import-to-editor transition | `components/organisms/import-panel.tsx`, `components/organisms/layout-editor.tsx` |
 | Molecules | Preview-stage composition, layout preview variants, timeline, drag/drop UI | `components/molecules/` |
 | Atoms | Single-purpose browser-video and range controls | `components/atoms/` |
-| Project features | Validated edit-state contracts: playback, hook, and output preset registry | `features/project/` |
+| Project features | Validated edit-state contracts: playback, text overlays, and output preset registry | `features/project/` |
 | Render features | Bounded Canvas/Focus/Poster layout configuration | `features/render/` |
 | Media features | Local file validation and metadata inspection | `features/media/` |
 | Export features | Capability assessment and local H.264 MP4 encoding | `features/export/` |
@@ -41,7 +41,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 
 - `PlaybackSettings`: trim start/end, mute, and speed. Always construct updates with `createPlaybackSettings()`.
 - `CanvasLayout`, `FocusLayout`, and `PosterLayout`: layout-specific state. Use their feature constructors where provided to maintain bounds.
-- `HookSettings`: optional opening text overlay, including bounded style, in-frame drag coordinates, and text-block width. Use `createHookSettings()` to maintain valid values.
+- `TextOverlay[]`: user-authored text layers, each with bounded styling, timing, in-frame drag coordinates, and text-block width. Use `createTextOverlay()` to maintain valid values.
 - `OutputSettings`: selected from the `outputPresets` registry; dimensions must not be copied into UI code.
 
 The same state is passed to preview components and to `exportLocalMp4`. This is the preview/export parity boundary. New editable state must have a clear owner and be deliberately threaded through both paths when it affects output.
@@ -54,7 +54,7 @@ The same state is passed to preview components and to `exportLocalMp4`. This is 
 
 ### Export
 
-`exportLocalMp4` loads the local object URL into an off-DOM video element, seeks it frame-by-frame, draws a Canvas frame for the chosen layout and hook, encodes H.264 with WebCodecs, and muxes an MP4 in memory. It reports progress, accepts cancellation, and returns a `Blob` for browser download.
+`exportLocalMp4` loads the local object URL into an off-DOM video element, seeks it frame-by-frame, draws a Canvas frame for the chosen layout and text overlays, encodes H.264 with WebCodecs, and muxes an MP4 in memory. It reports progress, accepts cancellation, and returns a `Blob` for browser download.
 
 Current export is video-only: source audio is not muxed. Device and configuration support are validated locally; unsupported exports must show a clear recoverable error.
 

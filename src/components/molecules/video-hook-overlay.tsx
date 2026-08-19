@@ -1,120 +1,44 @@
 import { useLayoutEffect, useRef, type PointerEvent } from "react";
-
-import type { HookSettings } from "@/features/project/hook-settings";
-import { cn } from "@/lib/utils";
 import type { CSSProperties } from "react";
 
-type HookLayoutChange = Pick<HookSettings, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">;
+import type { TextOverlay } from "@/features/project/text-overlays";
+import { cn } from "@/lib/utils";
+
+type TextOverlayLayoutChange = Pick<TextOverlay, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">;
 type DragMode = "move" | "resize-left" | "resize-right";
-
-interface DragState extends HookLayoutChange {
-  blockHeightPercent: number;
-  mode: DragMode;
-}
-
-interface VideoHookOverlayProps {
-  className?: string;
-  hook: HookSettings;
-  isVisible: boolean;
-  onChange?(change: HookLayoutChange): void;
-  showPlaceholder?: boolean;
-}
-
+interface DragState extends TextOverlayLayoutChange { blockHeightPercent: number; mode: DragMode; }
+interface VideoHookOverlayProps { className?: string; isSelected?: boolean; isVisible: boolean; onChange?(change: TextOverlayLayoutChange): void; onSelect?(): void; overlay: TextOverlay; }
 const edgeMarginPercent = 1;
 const minimumWidthPercent = 20;
 const maximumWidthPercent = 86;
+const fontClasses = { mono: "font-mono", sans: "font-sans", serif: "font-serif" } as const;
+const clamp = (value: number, minimum: number, maximum: number) => Math.min(Math.max(value, minimum), maximum);
 
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum);
-}
-
-export function VideoHookOverlay({ className, hook, isVisible, onChange, showPlaceholder = false }: VideoHookOverlayProps) {
-  const blockRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<DragState | undefined>(undefined);
-  const text = hook.text.trim() || (showPlaceholder ? "Your opening hook" : "");
-
+export function VideoHookOverlay({ className, isSelected = false, isVisible, onChange, onSelect, overlay }: VideoHookOverlayProps) {
+  const blockRef = useRef<HTMLDivElement>(null); const overlayRef = useRef<HTMLDivElement>(null); const dragStateRef = useRef<DragState | undefined>(undefined);
   useLayoutEffect(() => {
-    const block = blockRef.current;
-    const overlay = overlayRef.current;
-    if (!block || !overlay) return;
-
-    const blockBounds = block.getBoundingClientRect();
-    const overlayBounds = overlay.getBoundingClientRect();
-    const halfWidth = (blockBounds.width / overlayBounds.width) * 50;
-    const halfHeight = (blockBounds.height / overlayBounds.height) * 50;
-    const horizontalPositionPercent = clamp(hook.horizontalPositionPercent, halfWidth + edgeMarginPercent, 100 - halfWidth - edgeMarginPercent);
-    const verticalPositionPercent = clamp(hook.verticalPositionPercent, halfHeight + edgeMarginPercent, 100 - halfHeight - edgeMarginPercent);
-
-    if (Math.abs(horizontalPositionPercent - hook.horizontalPositionPercent) > 0.01 || Math.abs(verticalPositionPercent - hook.verticalPositionPercent) > 0.01) {
-      onChange?.({ horizontalPositionPercent, verticalPositionPercent, widthPercent: hook.widthPercent });
-    }
-  }, [hook.horizontalPositionPercent, hook.verticalPositionPercent, hook.widthPercent, onChange, text]);
-
-  if (!hook.enabled || !text || !isVisible) return null;
-
+    const block = blockRef.current; const container = overlayRef.current; if (!block || !container) return;
+    const blockBounds = block.getBoundingClientRect(); const containerBounds = container.getBoundingClientRect();
+    const halfWidth = (blockBounds.width / containerBounds.width) * 50; const halfHeight = (blockBounds.height / containerBounds.height) * 50;
+    const horizontalPositionPercent = clamp(overlay.horizontalPositionPercent, halfWidth + edgeMarginPercent, 100 - halfWidth - edgeMarginPercent);
+    const verticalPositionPercent = clamp(overlay.verticalPositionPercent, halfHeight + edgeMarginPercent, 100 - halfHeight - edgeMarginPercent);
+    if (Math.abs(horizontalPositionPercent - overlay.horizontalPositionPercent) > 0.01 || Math.abs(verticalPositionPercent - overlay.verticalPositionPercent) > 0.01) onChange?.({ horizontalPositionPercent, verticalPositionPercent, widthPercent: overlay.widthPercent });
+  }, [onChange, overlay.horizontalPositionPercent, overlay.text, overlay.verticalPositionPercent, overlay.widthPercent]);
+  if (!isVisible || !overlay.text.trim()) return null;
   function beginDrag(event: PointerEvent<HTMLElement>, mode: DragMode) {
-    const block = blockRef.current;
-    const overlay = overlayRef.current;
-    if (!block || !overlay) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    const blockBounds = block.getBoundingClientRect();
-    const overlayBounds = overlay.getBoundingClientRect();
-    dragStateRef.current = {
-      blockHeightPercent: (blockBounds.height / overlayBounds.height) * 100,
-      horizontalPositionPercent: hook.horizontalPositionPercent,
-      mode,
-      verticalPositionPercent: hook.verticalPositionPercent,
-      widthPercent: hook.widthPercent,
-    };
+    const block = blockRef.current; const container = overlayRef.current; if (!block || !container) return;
+    event.preventDefault(); event.stopPropagation(); onSelect?.();
+    const blockBounds = block.getBoundingClientRect(); const containerBounds = container.getBoundingClientRect();
+    dragStateRef.current = { blockHeightPercent: (blockBounds.height / containerBounds.height) * 100, horizontalPositionPercent: overlay.horizontalPositionPercent, mode, verticalPositionPercent: overlay.verticalPositionPercent, widthPercent: overlay.widthPercent };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
-
   function updateDrag(event: PointerEvent<HTMLDivElement>) {
-    const dragState = dragStateRef.current;
-    const overlayBounds = overlayRef.current?.getBoundingClientRect();
-    if (!dragState || !overlayBounds) return;
-
-    const pointerX = ((event.clientX - overlayBounds.left) / overlayBounds.width) * 100;
-    const pointerY = ((event.clientY - overlayBounds.top) / overlayBounds.height) * 100;
-    const left = dragState.horizontalPositionPercent - dragState.widthPercent / 2;
-    const right = dragState.horizontalPositionPercent + dragState.widthPercent / 2;
-
-    if (dragState.mode === "resize-left") {
-      const nextLeft = clamp(pointerX, Math.max(edgeMarginPercent, right - maximumWidthPercent), right - minimumWidthPercent);
-      const widthPercent = right - nextLeft;
-      onChange?.({ horizontalPositionPercent: nextLeft + widthPercent / 2, verticalPositionPercent: dragState.verticalPositionPercent, widthPercent });
-      return;
-    }
-
-    if (dragState.mode === "resize-right") {
-      const nextRight = clamp(pointerX, left + minimumWidthPercent, Math.min(100 - edgeMarginPercent, left + maximumWidthPercent));
-      const widthPercent = nextRight - left;
-      onChange?.({ horizontalPositionPercent: left + widthPercent / 2, verticalPositionPercent: dragState.verticalPositionPercent, widthPercent });
-      return;
-    }
-
-    const horizontalPositionPercent = clamp(pointerX, dragState.widthPercent / 2 + edgeMarginPercent, 100 - dragState.widthPercent / 2 - edgeMarginPercent);
-    const verticalPositionPercent = clamp(pointerY, dragState.blockHeightPercent / 2 + edgeMarginPercent, 100 - dragState.blockHeightPercent / 2 - edgeMarginPercent);
-    onChange?.({ horizontalPositionPercent, verticalPositionPercent, widthPercent: dragState.widthPercent });
+    const dragState = dragStateRef.current; const bounds = overlayRef.current?.getBoundingClientRect(); if (!dragState || !bounds) return;
+    const pointerX = ((event.clientX - bounds.left) / bounds.width) * 100; const pointerY = ((event.clientY - bounds.top) / bounds.height) * 100;
+    const left = dragState.horizontalPositionPercent - dragState.widthPercent / 2; const right = dragState.horizontalPositionPercent + dragState.widthPercent / 2;
+    if (dragState.mode === "resize-left") { const nextLeft = clamp(pointerX, Math.max(edgeMarginPercent, right - maximumWidthPercent), right - minimumWidthPercent); const widthPercent = right - nextLeft; onChange?.({ horizontalPositionPercent: nextLeft + widthPercent / 2, verticalPositionPercent: dragState.verticalPositionPercent, widthPercent }); return; }
+    if (dragState.mode === "resize-right") { const nextRight = clamp(pointerX, left + minimumWidthPercent, Math.min(100 - edgeMarginPercent, left + maximumWidthPercent)); const widthPercent = nextRight - left; onChange?.({ horizontalPositionPercent: left + widthPercent / 2, verticalPositionPercent: dragState.verticalPositionPercent, widthPercent }); return; }
+    onChange?.({ horizontalPositionPercent: clamp(pointerX, dragState.widthPercent / 2 + edgeMarginPercent, 100 - dragState.widthPercent / 2 - edgeMarginPercent), verticalPositionPercent: clamp(pointerY, dragState.blockHeightPercent / 2 + edgeMarginPercent, 100 - dragState.blockHeightPercent / 2 - edgeMarginPercent), widthPercent: dragState.widthPercent });
   }
-
-  return (
-    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-0 z-10", className)} ref={overlayRef} style={{ containerType: "inline-size" }}>
-      <div
-        className={cn("group pointer-events-auto absolute box-border cursor-grab touch-none select-none bg-black px-2 py-1 text-center font-extrabold leading-tight text-white shadow-sm active:cursor-grabbing", !hook.text.trim() && "italic text-white/80")}
-        onPointerDown={(event) => beginDrag(event, "move")}
-        onPointerMove={updateDrag}
-        onPointerUp={() => { dragStateRef.current = undefined; }}
-        ref={blockRef}
-        style={{ backgroundColor: hook.backgroundColor, fontSize: `${hook.fontSizePercent}cqw`, left: `${hook.horizontalPositionPercent}%`, top: `${hook.verticalPositionPercent}%`, transform: "translate(-50%, -50%)", userSelect: "none", WebkitUserSelect: "none", width: `${hook.widthPercent}%` } as CSSProperties}
-      >
-        {text}
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2 cursor-ew-resize opacity-0 transition-opacity group-hover:opacity-100" onPointerDown={(event) => beginDrag(event, "resize-left")} />
-        <span aria-hidden="true" className="absolute inset-y-0 right-0 w-2 cursor-ew-resize opacity-0 transition-opacity group-hover:opacity-100" onPointerDown={(event) => beginDrag(event, "resize-right")} />
-      </div>
-    </div>
-  );
+  return <div aria-hidden="true" className={cn("pointer-events-none absolute inset-0 z-10", className)} ref={overlayRef} style={{ containerType: "inline-size" }}><div className={cn("group pointer-events-auto absolute box-border cursor-grab touch-none select-none px-2 py-1 text-center font-extrabold leading-tight shadow-sm outline outline-2 outline-transparent active:cursor-grabbing", fontClasses[overlay.fontFamily], isSelected && "outline-cyan-300")} onPointerDown={(event) => beginDrag(event, "move")} onPointerMove={updateDrag} onPointerUp={() => { dragStateRef.current = undefined; }} ref={blockRef} style={{ backgroundColor: overlay.backgroundColor, color: overlay.color, fontSize: `${overlay.fontSizePercent}cqw`, left: `${overlay.horizontalPositionPercent}%`, top: `${overlay.verticalPositionPercent}%`, transform: "translate(-50%, -50%)", userSelect: "none", WebkitUserSelect: "none", width: `${overlay.widthPercent}%` } as CSSProperties}>{overlay.text}{isSelected ? <><span aria-hidden="true" className="absolute inset-y-0 left-0 w-2 cursor-ew-resize" onPointerDown={(event) => beginDrag(event, "resize-left")} /><span aria-hidden="true" className="absolute inset-y-0 right-0 w-2 cursor-ew-resize" onPointerDown={(event) => beginDrag(event, "resize-right")} /></> : null}</div></div>;
 }
