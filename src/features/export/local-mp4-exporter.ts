@@ -2,7 +2,7 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
 import { getBrowserExportCapability } from "@/features/export/export-capabilities";
 import { getOutputElapsedSeconds, type PlaybackSettings } from "@/features/project/playback-settings";
-import { isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
+import { getTextOverlayFontStack, isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
@@ -196,8 +196,7 @@ function drawTextOverlay(
   height: number,
 ): void {
   const fontSize = Math.round(width * (overlay.fontSizePercent / 100));
-  const fontFamily = overlay.fontFamily === "mono" ? "monospace" : overlay.fontFamily === "serif" ? "serif" : "sans-serif";
-  const font = `800 ${fontSize}px ${fontFamily}`;
+  const font = `800 ${fontSize}px ${getTextOverlayFontStack(overlay.fontFamily)}`;
   const maxWidth = width * (overlay.widthPercent / 100) - fontSize * 0.36;
   const lines = wrapText(context, overlay.text.trim(), font, maxWidth);
   const lineHeight = Math.round(fontSize * 1.2);
@@ -212,8 +211,10 @@ function drawTextOverlay(
   const boxHeight = textHeight + padding * 2;
   const x = width * (overlay.horizontalPositionPercent / 100);
   const y = height * (overlay.verticalPositionPercent / 100) - boxHeight / 2;
-  context.fillStyle = overlay.backgroundColor;
-  context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
+  if (overlay.backgroundColor !== "transparent") {
+    context.fillStyle = overlay.backgroundColor;
+    context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
+  }
   context.fillStyle = overlay.color;
   lines.forEach((line, index) => context.fillText(line, x, y + padding + index * lineHeight));
   context.restore();

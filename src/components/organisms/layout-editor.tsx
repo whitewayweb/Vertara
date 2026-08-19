@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { EditorRangeControl } from "@/components/atoms/editor-range-control";
+import { EditorColorPicker } from "@/components/atoms/editor-color-picker";
 import { EditorPreviewStage } from "@/components/molecules/editor-preview-stage";
 import { EditorTimeline } from "@/components/molecules/editor-timeline";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -23,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
-import { createTextOverlay, textFontFamilies, type TextOverlay } from "@/features/project/text-overlays";
+import { createTextOverlay, textFontOptions, type TextOverlay } from "@/features/project/text-overlays";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
 import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
@@ -59,9 +60,9 @@ function TextOverlayToolbar({ durationSeconds, onAdd, onChange, onDelete, select
     <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={onAdd} size="sm"><Type /> Add text</Button>
     {selected ? <>
       <Textarea aria-label="Selected text" className="min-h-8 min-w-32 flex-1 resize-none border-white/10 bg-black/20 py-1 text-white" maxLength={280} onChange={(event) => onChange(selected.id, { text: event.target.value })} placeholder="Write something" rows={1} value={selected.text} />
-      <label className="flex items-center gap-1 text-xs text-slate-400">Text <input aria-label="Text colour" className="size-7 cursor-pointer rounded border border-white/10 bg-transparent p-0.5" onChange={(event) => onChange(selected.id, { color: event.target.value })} type="color" value={selected.color} /></label>
-      <label className="flex items-center gap-1 text-xs text-slate-400">Fill <input aria-label="Text background colour" className="size-7 cursor-pointer rounded border border-white/10 bg-transparent p-0.5" onChange={(event) => onChange(selected.id, { backgroundColor: event.target.value })} type="color" value={selected.backgroundColor} /></label>
-      <Select onValueChange={(value) => value && onChange(selected.id, { fontFamily: value as TextOverlay["fontFamily"] })} value={selected.fontFamily}><SelectTrigger className="h-8 w-24 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textFontFamilies.map((family) => <SelectItem key={family} value={family}>{family}</SelectItem>)}</SelectContent></Select>
+      <label className="flex items-center gap-1 text-xs text-slate-400">Text <EditorColorPicker label="Text colour" onChange={(color) => onChange(selected.id, { color })} value={selected.color} /></label>
+      <label className="flex items-center gap-1 text-xs text-slate-400">Fill <EditorColorPicker label="Text background colour" onChange={(backgroundColor) => onChange(selected.id, { backgroundColor })} value={selected.backgroundColor} /></label>
+      <Select onValueChange={(value) => value && onChange(selected.id, { fontFamily: value as TextOverlay["fontFamily"] })} value={selected.fontFamily}><SelectTrigger className="h-8 w-28 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textFontOptions.map((font) => <SelectItem key={font.value} value={font.value}>{font.label}</SelectItem>)}</SelectContent></Select>
       <label className="flex items-center gap-1 text-xs text-slate-400">Size <input aria-label="Text size" className="w-16 accent-cyan-300" max="12" min="4" onChange={(event) => onChange(selected.id, { fontSizePercent: Number(event.target.value) })} step="1" type="range" value={selected.fontSizePercent} /></label>
       <label className="flex items-center gap-1 text-xs text-slate-400">From <input aria-label="Text start time" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={durationSeconds} min="0" onChange={(event) => onChange(selected.id, { startSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.startSeconds} />s</label>
       <label className="flex items-center gap-1 text-xs text-slate-400">For <input aria-label="Text duration" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={Math.max(0.5, durationSeconds - selected.startSeconds)} min="0.5" onChange={(event) => onChange(selected.id, { durationSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.durationSeconds} />s</label>
