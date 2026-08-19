@@ -109,7 +109,7 @@ export function VideoHookOverlay({ className, hook, isVisible, onChange, showPla
         onPointerMove={updateDrag}
         onPointerUp={() => { dragStateRef.current = undefined; }}
         ref={blockRef}
-        style={{ backgroundColor: hook.backgroundColor, fontSize: `${hook.fontSizePercent}cqw`, left: `${hook.horizontalPositionPercent}%`, top: `${hook.verticalPositionPercent}%`, transform: "translate(-50%, -50%)", width: `${hook.widthPercent}%` } as CSSProperties}
+        style={{ backgroundColor: hook.backgroundColor, fontSize: `${hook.fontSizePercent}cqw`, left: `${hook.horizontalPositionPercent}%`, top: `${hook.verticalPositionPercent}%`, transform: "translate(-50%, -50%)", userSelect: "none", WebkitUserSelect: "none", width: `${hook.widthPercent}%` } as CSSProperties}
       >
         {text}
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2 cursor-ew-resize opacity-0 transition-opacity group-hover:opacity-100" onPointerDown={(event) => beginDrag(event, "resize-left")} />
