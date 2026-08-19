@@ -41,7 +41,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 
 - `PlaybackSettings`: trim start/end, mute, and speed. Always construct updates with `createPlaybackSettings()`.
 - `CanvasLayout`, `FocusLayout`, and `PosterLayout`: layout-specific state. Use their feature constructors where provided to maintain bounds.
-- `HookSettings`: optional opening text overlay. Use `createHookSettings()` to maintain content limits.
+- `HookSettings`: optional opening text overlay, including bounded style, in-frame drag coordinates, and text-block width. Use `createHookSettings()` to maintain valid values.
 - `OutputSettings`: selected from the `outputPresets` registry; dimensions must not be copied into UI code.
 
 The same state is passed to preview components and to `exportLocalMp4`. This is the preview/export parity boundary. New editable state must have a clear owner and be deliberately threaded through both paths when it affects output.

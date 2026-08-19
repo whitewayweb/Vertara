@@ -195,20 +195,24 @@ function drawHook(
   if (!hook.enabled || !hook.text.trim() || elapsedSeconds >= hook.durationSeconds) return;
 
   const fontSize = Math.round(width * (hook.fontSizePercent / 100));
-  const maxWidth = width * 0.86;
+  const maxWidth = width * (hook.widthPercent / 100) - fontSize * 0.36;
   const lines = wrapText(context, hook.text.trim(), `800 ${fontSize}px sans-serif`, maxWidth);
   const lineHeight = Math.round(fontSize * 1.2);
   const textHeight = lines.length * lineHeight;
-  const y = hook.position === "top" ? height * 0.09 : hook.position === "center" ? (height - textHeight) / 2 : height * 0.91 - textHeight;
 
   context.save();
   context.font = `800 ${fontSize}px sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "top";
+  const padding = fontSize * 0.18;
+  const boxWidth = width * (hook.widthPercent / 100);
+  const boxHeight = textHeight + padding * 2;
+  const x = width * (hook.horizontalPositionPercent / 100);
+  const y = height * (hook.verticalPositionPercent / 100) - boxHeight / 2;
   context.fillStyle = hook.backgroundColor;
-  context.fillRect(width * 0.055, y - fontSize * 0.18, width * 0.89, textHeight + fontSize * 0.36);
+  context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
   context.fillStyle = "white";
-  lines.forEach((line, index) => context.fillText(line, width / 2, y + index * lineHeight));
+  lines.forEach((line, index) => context.fillText(line, x, y + padding + index * lineHeight));
   context.restore();
 }
 

@@ -13,13 +13,14 @@ interface CanvasVideoPreviewProps {
   className?: string;
   hook?: HookSettings;
   isPlaying?: boolean;
+  onHookLayoutChange?(change: Pick<HookSettings, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">): void;
   onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
   seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
 }
 
-export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, hook, isPlaying, onPlaybackTimeChange, playback, seekRequest, sourceUrl }: CanvasVideoPreviewProps) {
+export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, hook, isPlaying, onHookLayoutChange, onPlaybackTimeChange, playback, seekRequest, sourceUrl }: CanvasVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -42,7 +43,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} showPlaceholder /> : null}
+      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} onChange={onHookLayoutChange} showPlaceholder /> : null}
     </div>
   );
 }

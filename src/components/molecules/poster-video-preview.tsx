@@ -12,6 +12,7 @@ interface PosterVideoPreviewProps {
   headline: string;
   hook?: HookSettings;
   isPlaying?: boolean;
+  onHookLayoutChange?(change: Pick<HookSettings, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">): void;
   onPlaybackTimeChange?(timeSeconds: number): void;
   playback: PlaybackSettings;
   seekRequest?: { id: number; timeSeconds: number };
@@ -19,7 +20,7 @@ interface PosterVideoPreviewProps {
   subline: string;
 }
 
-export function PosterVideoPreview({ className, headline, hook, isPlaying, onPlaybackTimeChange, playback, seekRequest, sourceUrl, subline }: PosterVideoPreviewProps) {
+export function PosterVideoPreview({ className, headline, hook, isPlaying, onHookLayoutChange, onPlaybackTimeChange, playback, seekRequest, sourceUrl, subline }: PosterVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -37,7 +38,7 @@ export function PosterVideoPreview({ className, headline, hook, isPlaying, onPla
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} showPlaceholder /> : null}
+      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} onChange={onHookLayoutChange} showPlaceholder /> : null}
     </div>
   );
 }
