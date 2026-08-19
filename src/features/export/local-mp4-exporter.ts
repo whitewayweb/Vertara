@@ -1,7 +1,7 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
 import { getBrowserExportCapability } from "@/features/export/export-capabilities";
-import type { PlaybackSettings } from "@/features/project/playback-settings";
+import { getOutputElapsedSeconds, type PlaybackSettings } from "@/features/project/playback-settings";
 import type { HookSettings } from "@/features/project/hook-settings";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
@@ -44,9 +44,13 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) throw new Error("This browser cannot prepare the export canvas.");
 
-  const fps = 30;
+  const sourceFps = 30;
+  const fps = sourceFps * request.playback.speed;
   const frameDurationMicroseconds = Math.round(1_000_000 / fps);
-  const frameCount = Math.max(1, Math.ceil((request.playback.trimEndSeconds - request.playback.trimStartSeconds) * fps));
+  // Keep the same 30fps source samples as a normal-speed export, then encode
+  // them at the faster output rate. This shortens duration without dropping
+  // frames from Vertara's current fixed-rate renderer.
+  const frameCount = Math.max(1, Math.ceil((request.playback.trimEndSeconds - request.playback.trimStartSeconds) * sourceFps));
   const target = new ArrayBufferTarget();
   const muxer = new Muxer({
     target,
@@ -55,18 +59,16 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
     firstTimestampBehavior: "offset",
   });
   const encoderConfig: VideoEncoderConfig = {
-    // Baseline Level 4.0 supports a 1080 × 1920, 30fps vertical export.
-    // Level 3.1 closes the encoder when asked to encode this resolution.
-    codec: "avc1.420028",
+    codec: getH264CodecForFramerate(fps),
     width: canvas.width,
     height: canvas.height,
-    bitrate: 7_000_000,
+    bitrate: 7_000_000 * request.playback.speed,
     framerate: fps,
   };
   const support = await VideoEncoder.isConfigSupported(encoderConfig);
   if (!support.supported) {
     video.remove();
-    throw new Error("This browser cannot encode the selected export size as H.264 MP4.");
+    throw new Error("This browser cannot encode the selected export size and speed as H.264 MP4. Try a lower speed or resolution.");
   }
 
   let encoderError: Error | undefined;
@@ -91,7 +93,7 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
         throw new Error(`The browser encoder stopped: ${encoderError.message}`);
       }
 
-      await seek(video, request.playback.trimStartSeconds + frameIndex / fps);
+      await seek(video, request.playback.trimStartSeconds + frameIndex / sourceFps);
       throwIfAborted(request.abortSignal);
       drawFrame(context, video, request);
       const frame = new VideoFrame(canvas, {
@@ -120,6 +122,16 @@ export async function exportLocalMp4(request: LocalMp4ExportRequest): Promise<Bl
     }
     video.remove();
   }
+}
+
+function getH264CodecForFramerate(framerate: number): string {
+  // 1080 × 1920 needs a higher H.264 level as a retained frame sequence is
+  // encoded into a shorter duration. Config support is still checked before
+  // exporting, so unsupported devices receive the existing recoverable error.
+  if (framerate <= 30) return "avc1.420028";
+  if (framerate <= 60) return "avc1.42002A";
+  if (framerate <= 120) return "avc1.420033";
+  return "avc1.420034";
 }
 
 function throwIfAborted(abortSignal: AbortSignal | undefined): void {
@@ -158,19 +170,19 @@ function drawFrame(context: CanvasRenderingContext2D, video: HTMLVideoElement, r
     context.fillStyle = gradient; context.fillRect(0, 0, width, height);
     context.fillStyle = "white"; context.font = `600 ${Math.round(width * 0.07)}px sans-serif`; context.fillText(request.posterLayout.headline, width * 0.06, height * 0.12, width * 0.88);
     drawContain(context, video, width * 0.06, height * 0.28, width * 0.88, height * 0.62);
-    drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
+    drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
   if (request.mode === "focus") {
     drawCover(context, video, 0, 0, width, height, request.focusLayout.panX, request.focusLayout.zoom);
-    drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
+    drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
   context.save(); context.filter = `blur(${request.canvasLayout.backdropBlurPixels}px)`; context.globalAlpha = request.canvasLayout.backdropOpacity;
   drawCover(context, video, 0, 0, width, height, 50, 1.1); context.restore();
   context.fillStyle = `rgba(0,0,0,${request.canvasLayout.dimOpacity})`; context.fillRect(0, 0, width, height);
   drawContain(context, video, 0, 0, width, height);
-  drawHook(context, request.hook, video.currentTime - request.playback.trimStartSeconds, width, height);
+  drawHook(context, request.hook, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
 }
 
 function drawHook(

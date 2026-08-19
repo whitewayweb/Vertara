@@ -29,6 +29,12 @@ export function PlaybackVideo({ ariaHidden = false, className, isPlaying = true,
   }, [seekToTrimStart, sourceUrl]);
 
   useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playback.speed;
+    }
+  }, [playback.speed]);
+
+  useEffect(() => {
     if (isPlaying) {
       void videoRef.current?.play().catch(() => undefined);
     } else {

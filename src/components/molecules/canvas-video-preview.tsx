@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PlaybackVideo } from "@/components/atoms/playback-video";
 import type { HookSettings } from "@/features/project/hook-settings";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
+import { getOutputElapsedSeconds } from "@/features/project/playback-settings";
 import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
 
 interface CanvasVideoPreviewProps {
@@ -41,7 +42,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
       />
-      {hook ? <VideoHookOverlay hook={hook} isVisible={currentTime - playback.trimStartSeconds < hook.durationSeconds} showPlaceholder /> : null}
+      {hook ? <VideoHookOverlay hook={hook} isVisible={getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback) < hook.durationSeconds} showPlaceholder /> : null}
     </div>
   );
 }
