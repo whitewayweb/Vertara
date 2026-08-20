@@ -196,6 +196,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [x] Add bounded text-layer undo/redo with keyboard shortcuts, without conflating playback/export events with edit history.
 - [x] Add toggleable social safe-area guides to keep text clear of common vertical-video interface chrome; guides are excluded from exports.
 - [x] Add reusable Hook, Quote, and CTA text templates plus a selectable layer strip and duplicate action for managing many overlays.
+- [x] Add left, centre, and right text alignment with matching preview and MP4 export rendering.
 - [x] Add Canvas backdrop blur, intensity, and dim controls for professional full-frame framing adjustments.
 - [x] Add shared brightness, contrast, saturation, and warmth controls to all layout previews and MP4 export.
 - Build playback-synchronised Canvas preview with adaptive canvas resolution.

@@ -43,4 +43,9 @@ describe("text overlays", () => {
     expect(textOverlayTemplates.map((template) => template.label)).toEqual(["Hook", "Quote", "CTA"]);
     expect(duplicateTextOverlay(createTextOverlay("first", { horizontalPositionPercent: 50, verticalPositionPercent: 50 }), "copy")).toMatchObject({ horizontalPositionPercent: 54, id: "copy", verticalPositionPercent: 54 });
   });
+
+  it("uses only supported text alignments", () => {
+    expect(createTextOverlay("left", { textAlign: "left" }).textAlign).toBe("left");
+    expect(createTextOverlay("invalid", { textAlign: "justify" as never }).textAlign).toBe("center");
+  });
 });

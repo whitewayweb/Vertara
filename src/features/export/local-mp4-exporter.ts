@@ -207,7 +207,7 @@ function drawTextOverlay(
 
   context.save();
   context.font = font;
-  context.textAlign = "center";
+  context.textAlign = overlay.textAlign;
   context.textBaseline = "top";
   const padding = fontSize * 0.18;
   const boxWidth = width * (overlay.widthPercent / 100);
@@ -227,7 +227,8 @@ function drawTextOverlay(
     context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
   }
   context.fillStyle = overlay.color;
-  lines.forEach((line, index) => context.fillText(line, x, y + padding + index * lineHeight));
+  const textX = overlay.textAlign === "left" ? x - boxWidth / 2 + padding : overlay.textAlign === "right" ? x + boxWidth / 2 - padding : x;
+  lines.forEach((line, index) => context.fillText(line, textX, y + padding + index * lineHeight));
   context.restore();
 }
 
