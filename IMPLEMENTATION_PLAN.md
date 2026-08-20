@@ -194,7 +194,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [x] Add fade, pop, and slide-up entrance styles for timed text layers, with matching preview and MP4-export timing.
 - [x] Add a local emoji-sticker quick picker; stickers remain standard editable text layers so their timing, positioning, animation, and export behaviour stay consistent.
 - [x] Add bounded text-layer undo/redo with keyboard shortcuts, without conflating playback/export events with edit history.
-- [x] Add toggleable social safe-area guides to keep text clear of common vertical-video interface chrome; guides are excluded from exports.
+- [x] Add toggleable output-format-aware social safe-area guides to keep text clear of common interface chrome; guides are independent of Canvas/Focus/Poster and excluded from exports.
 - [x] Add reusable Hook, Quote, and CTA text templates plus a selectable layer strip and duplicate action for managing many overlays.
 - [x] Add left, centre, and right text alignment with matching preview and MP4 export rendering.
 - [x] Add Canvas backdrop blur, intensity, and dim controls for professional full-frame framing adjustments.
