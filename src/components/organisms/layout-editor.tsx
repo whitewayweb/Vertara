@@ -9,6 +9,7 @@ import {
   Pause,
   Play,
   Settings2, Trash2, Type,
+  SmilePlus,
   Volume2,
 } from "lucide-react";
 
@@ -51,14 +52,16 @@ const layoutOptions: Array<{ description: string; mode: ExportLayoutMode; title:
 interface TextOverlayToolbarProps {
   durationSeconds: number;
   onAdd(): void;
+  onAddSticker(sticker: string): void;
   onChange(id: string, change: Partial<TextOverlay>): void;
   onDelete(id: string): void;
   selected?: TextOverlay;
 }
 
-function TextOverlayToolbar({ durationSeconds, onAdd, onChange, onDelete, selected }: TextOverlayToolbarProps) {
+function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onChange, onDelete, selected }: TextOverlayToolbarProps) {
   return <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#171b22]/95 p-2 shadow-lg" role="toolbar" aria-label="Text editor">
     <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={onAdd} size="sm"><Type /> Add text</Button>
+    <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/20 p-1" aria-label="Add emoji sticker" role="group">{["✨", "🔥", "😍", "💯", "🎉"].map((sticker) => <Button aria-label={`Add ${sticker} sticker`} className="size-7 text-base" key={sticker} onClick={() => onAddSticker(sticker)} size="icon-sm" variant="ghost">{sticker}</Button>)}<SmilePlus aria-hidden="true" className="size-3 text-slate-500" /></div>
     {selected ? <>
       <Textarea aria-label="Selected text" className="min-h-8 min-w-32 flex-1 resize-none border-white/10 bg-black/20 py-1 text-white" maxLength={280} onChange={(event) => onChange(selected.id, { text: event.target.value })} placeholder="Write something" rows={1} value={selected.text} />
       <label className="flex items-center gap-1 text-xs text-slate-400">Text <EditorColorPicker label="Text colour" onChange={(color) => onChange(selected.id, { color })} value={selected.color} /></label>
@@ -95,6 +98,12 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
     const nextPlayback = createPlaybackSettings(durationSeconds, { ...playback, ...partial });
     setPlayback(nextPlayback);
     setCurrentTime((time) => Math.min(Math.max(time, nextPlayback.trimStartSeconds), nextPlayback.trimEndSeconds));
+  }
+
+  function addOverlay(partial: Partial<TextOverlay> = {}) {
+    const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)), ...partial });
+    setOverlays((current) => [...current, overlay]);
+    setSelectedOverlayId(overlay.id);
   }
 
   function seekTo(timeSeconds: number) {
@@ -176,7 +185,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
-            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => { const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)) }); setOverlays((current) => [...current, overlay]); setSelectedOverlayId(overlay.id); }} onChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { setOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
+            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { setOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
             <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">

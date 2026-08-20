@@ -17,6 +17,10 @@ describe("text overlays", () => {
     expect(createTextOverlay("no-fill", { backgroundColor: "transparent" }).backgroundColor).toBe("transparent");
   });
 
+  it("accepts local emoji sticker text without a separate overlay type", () => {
+    expect(createTextOverlay("sticker", { backgroundColor: "transparent", text: "✨" })).toMatchObject({ backgroundColor: "transparent", text: "✨" });
+  });
+
   it("preserves valid alpha-enabled hex colours", () => {
     expect(createTextOverlay("alpha", { backgroundColor: "#11223380" }).backgroundColor).toBe("#11223380");
   });
