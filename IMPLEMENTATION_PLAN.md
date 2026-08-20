@@ -193,6 +193,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [x] Add user-authored text overlays with editable text, foreground/background colours, typeface, draggable in-video position, edge-resizable text block, and timing; render every non-blank layer in both preview and MP4 export. Controls live directly above the preview.
 - [x] Add fade, pop, and slide-up entrance styles for timed text layers, with matching preview and MP4-export timing.
 - [x] Add a local emoji-sticker quick picker; stickers remain standard editable text layers so their timing, positioning, animation, and export behaviour stay consistent.
+- [x] Add bounded text-layer undo/redo with keyboard shortcuts, without conflating playback/export events with edit history.
 - [x] Add Canvas backdrop blur, intensity, and dim controls for professional full-frame framing adjustments.
 - [x] Add shared brightness, contrast, saturation, and warmth controls to all layout previews and MP4 export.
 - Build playback-synchronised Canvas preview with adaptive canvas resolution.

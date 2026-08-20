@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AudioLines,
   Clapperboard,
@@ -8,7 +8,7 @@ import {
   LayoutTemplate,
   Pause,
   Play,
-  Settings2, Trash2, Type,
+  Redo2, Settings2, Trash2, Type, Undo2,
   SmilePlus,
   Volume2,
 } from "lucide-react";
@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
 import { createTextOverlay, textEntranceAnimationOptions, textFontOptions, type TextOverlay } from "@/features/project/text-overlays";
+import { commitEdit, createEditHistory, redoEdit, undoEdit } from "@/features/project/edit-history";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
 import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
@@ -83,7 +84,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
   const [exportError, setExportError] = useState<string>();
   const [exportProgress, setExportProgress] = useState<number>();
   const [focusLayout, setFocusLayout] = useState(defaultFocusLayout);
-  const [overlays, setOverlays] = useState<TextOverlay[]>([]);
+  const [overlayHistory, setOverlayHistory] = useState(() => createEditHistory<TextOverlay[]>([]));
   const [selectedOverlayId, setSelectedOverlayId] = useState<string>();
   const [isPlaying, setIsPlaying] = useState(false);
   const [mode, setMode] = useState<ExportLayoutMode>("canvas");
@@ -93,6 +94,18 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
   const [preset, setPreset] = useState<OutputPreset>("youtube-shorts");
   const [seekRequest, setSeekRequest] = useState({ id: 0, timeSeconds: 0 });
   const exportAbortController = useRef<AbortController | undefined>(undefined);
+  const overlays = overlayHistory.present;
+
+  useEffect(() => {
+    function handleHistoryShortcut(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if ((!event.metaKey && !event.ctrlKey) || event.key.toLowerCase() !== "z" || target?.isContentEditable || target?.matches("input, textarea, select")) return;
+      event.preventDefault();
+      setOverlayHistory((history) => event.shiftKey ? redoEdit(history) : undoEdit(history));
+    }
+    window.addEventListener("keydown", handleHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleHistoryShortcut);
+  }, []);
 
   function updatePlayback(partial: Partial<typeof playback>) {
     const nextPlayback = createPlaybackSettings(durationSeconds, { ...playback, ...partial });
@@ -102,8 +115,12 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
 
   function addOverlay(partial: Partial<TextOverlay> = {}) {
     const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)), ...partial });
-    setOverlays((current) => [...current, overlay]);
+    setOverlayHistory((history) => commitEdit(history, [...history.present, overlay]));
     setSelectedOverlayId(overlay.id);
+  }
+
+  function updateOverlays(update: (current: TextOverlay[]) => TextOverlay[]) {
+    setOverlayHistory((history) => commitEdit(history, update(history.present)));
   }
 
   function seekTo(timeSeconds: number) {
@@ -155,6 +172,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
           <div className="grid size-8 place-items-center rounded-lg bg-cyan-400 font-bold text-slate-950">V</div>
           <div><p className="text-sm font-semibold tracking-[0.16em]">VERTARA</p><p className="hidden text-xs text-slate-500 sm:block">Local video workspace</p></div>
         </div>
+        <div className="ml-auto mr-3 flex items-center gap-1"><Button aria-label="Undo text edit" disabled={overlayHistory.past.length === 0} onClick={() => setOverlayHistory(undoEdit)} size="icon-sm" title="Undo text edit (⌘Z)" variant="ghost"><Undo2 /></Button><Button aria-label="Redo text edit" disabled={overlayHistory.future.length === 0} onClick={() => setOverlayHistory(redoEdit)} size="icon-sm" title="Redo text edit (⇧⌘Z)" variant="ghost"><Redo2 /></Button></div>
         {exportProgress === undefined ? (
           <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={handleExport}>Export</Button>
         ) : (
@@ -185,8 +203,8 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
-            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { setOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
-            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
+            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
+            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
