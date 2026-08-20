@@ -199,7 +199,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [x] Add left, centre, and right text alignment with matching preview and MP4 export rendering.
 - [x] Add Canvas backdrop blur, intensity, and dim controls for professional full-frame framing adjustments.
 - [x] Add shared brightness, contrast, saturation, and warmth controls to all layout previews and MP4 export.
-- [x] Replace the non-functional left rail and duplicate text-only layout controls with visual, selectable layout treatments above the preview; selecting a treatment changes the existing Canvas, Focus, or Poster state.
+- [x] Replace the non-functional left rail and duplicate text-only layout controls with visual, selectable layout treatments that are themselves the real Canvas, Focus, and Poster previews; selecting a treatment changes the existing mode without a duplicate preview surface.
 - Build playback-synchronised Canvas preview with adaptive canvas resolution.
 - Add per-layout blur/dim and colour controls, audio gain, and undo/redo for editing settings.
 

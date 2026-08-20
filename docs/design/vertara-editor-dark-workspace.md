@@ -14,7 +14,7 @@ Approved visual direction for the browser editor. The reference image is stored 
 
 - Top bar: project context, undo/redo affordances, and export.
 - Left context: local footage name, dimensions, duration, and privacy status.
-- Centre: a compact Frame/Text switch. Frame presents three visual treatments—Show the scene, Fill the frame, and Lead with a message—using the current local footage; Text exposes text-layer controls. The selected treatment drives the output preview and playback controls above a single-source timeline.
+- Centre: a compact Frame/Text switch. Frame presents three real vertical previews—Show the scene, Fill the frame, and Lead with a message—using the current local footage; those frames are the preview surface, not thumbnails above a duplicate preview. Text exposes text-layer controls and one interactive selected-layout preview.
 - Right inspector: adjustments for the selected treatment, trim/audio, and export preset.
 
 The interface should guide through direct visual comparison and context-sensitive controls rather than explanatory UI. This reference guides hierarchy, spacing, tone, and control placement. It is not a requirement to reproduce external editor products or their visual identity.
