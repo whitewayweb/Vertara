@@ -30,6 +30,7 @@ import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type 
 import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
 import { createFocusLayout, defaultFocusLayout } from "@/features/render/focus-layout";
 import { defaultPosterLayout } from "@/features/render/poster-layout";
+import { createVideoAdjustments, defaultVideoAdjustments } from "@/features/render/video-adjustments";
 import { formatTime } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +85,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
   const [mode, setMode] = useState<ExportLayoutMode>("canvas");
   const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
   const [posterLayout, setPosterLayout] = useState(defaultPosterLayout);
+  const [videoAdjustments, setVideoAdjustments] = useState(defaultVideoAdjustments);
   const [preset, setPreset] = useState<OutputPreset>("youtube-shorts");
   const [seekRequest, setSeekRequest] = useState({ id: 0, timeSeconds: 0 });
   const exportAbortController = useRef<AbortController | undefined>(undefined);
@@ -118,6 +120,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
         playback,
         posterLayout,
         sourceUrl,
+        videoAdjustments,
       });
       const downloadUrl = URL.createObjectURL(file);
       const link = document.createElement("a");
@@ -173,7 +176,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
             <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => { const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)) }); setOverlays((current) => [...current, overlay]); setSelectedOverlayId(overlay.id); }} onChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { setOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
-            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} />
+            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => setOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
@@ -194,6 +197,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
                 {mode === "canvas" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Backdrop blur" max={48} suffix=" px" value={canvasLayout.backdropBlurPixels} onChange={(backdropBlurPixels) => setCanvasLayout(createCanvasLayout(backdropBlurPixels, canvasLayout.backdropOpacity, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop intensity" suffix="%" value={canvasLayout.backdropOpacity * 100} onChange={(backdropOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, backdropOpacity / 100, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop dim" max={80} suffix="%" value={canvasLayout.dimOpacity * 100} onChange={(dimOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, canvasLayout.backdropOpacity, dimOpacity / 100))} /></div> : null}
                 {mode === "focus" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Position" suffix="%" value={focusLayout.panX} onChange={(panX) => setFocusLayout(createFocusLayout(panX, focusLayout.zoom))} /><EditorRangeControl label="Scale" max={2} min={1} step={0.01} suffix="×" value={focusLayout.zoom} onChange={(zoom) => setFocusLayout(createFocusLayout(focusLayout.panX, zoom))} /></div> : null}
                 {mode === "poster" ? <div className="mt-5 space-y-3"><Input aria-label="Poster headline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, headline: event.target.value }))} placeholder="Headline" value={posterLayout.headline} /><Input aria-label="Poster subline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, subline: event.target.value }))} placeholder="Supporting line" value={posterLayout.subline} /></div> : null}
+                <div className="mt-5 space-y-4 border-t border-white/10 pt-5"><p className="text-sm font-medium text-white">Colour adjustments</p><EditorRangeControl label="Brightness" max={150} min={50} suffix="%" value={videoAdjustments.brightness} onChange={(brightness) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, brightness }))} /><EditorRangeControl label="Contrast" max={150} min={50} suffix="%" value={videoAdjustments.contrast} onChange={(contrast) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, contrast }))} /><EditorRangeControl label="Saturation" max={200} suffix="%" value={videoAdjustments.saturate} onChange={(saturate) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, saturate }))} /><EditorRangeControl label="Warmth" max={40} min={-40} suffix="°" value={videoAdjustments.warmth} onChange={(warmth) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, warmth }))} /></div>
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="trim">

@@ -6,6 +6,7 @@ import { PlaybackVideo } from "@/components/atoms/playback-video";
 import { isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import { getOutputElapsedSeconds } from "@/features/project/playback-settings";
+import { getVideoAdjustmentsFilter, type VideoAdjustments } from "@/features/render/video-adjustments";
 
 interface PosterVideoPreviewProps {
   className?: string;
@@ -20,9 +21,10 @@ interface PosterVideoPreviewProps {
   seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
   subline: string;
+  videoAdjustments: VideoAdjustments;
 }
 
-export function PosterVideoPreview({ className, headline, isPlaying, onOverlayLayoutChange, onOverlaySelect, onPlaybackTimeChange, overlays, playback, seekRequest, selectedOverlayId, sourceUrl, subline }: PosterVideoPreviewProps) {
+export function PosterVideoPreview({ className, headline, isPlaying, onOverlayLayoutChange, onOverlaySelect, onPlaybackTimeChange, overlays, playback, seekRequest, selectedOverlayId, sourceUrl, subline, videoAdjustments }: PosterVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -39,6 +41,7 @@ export function PosterVideoPreview({ className, headline, isPlaying, onOverlayLa
         playback={playback}
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
+        style={{ filter: getVideoAdjustmentsFilter(videoAdjustments) }}
       />
       {overlays.map((overlay) => <VideoHookOverlay isSelected={overlay.id === selectedOverlayId} isVisible={isTextOverlayVisible(overlay, getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback))} key={overlay.id} onChange={(change) => onOverlayLayoutChange?.(overlay.id, change)} onSelect={() => onOverlaySelect?.(overlay.id)} overlay={overlay} />)}
     </div>

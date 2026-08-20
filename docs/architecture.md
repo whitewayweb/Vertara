@@ -40,7 +40,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 `LayoutEditor` owns the current edit state for one selected local file:
 
 - `PlaybackSettings`: trim start/end, mute, and speed. Always construct updates with `createPlaybackSettings()`.
-- `CanvasLayout`, `FocusLayout`, and `PosterLayout`: layout-specific state. Use their feature constructors where provided to maintain bounds.
+- `CanvasLayout`, `FocusLayout`, `PosterLayout`, and `VideoAdjustments`: layout-specific state. Use their feature constructors where provided to maintain bounds.
 - `TextOverlay[]`: user-authored text layers, each with bounded styling, timing, in-frame drag coordinates, and text-block width. Use `createTextOverlay()` to maintain valid values.
 - `OutputSettings`: selected from the `outputPresets` registry; dimensions must not be copied into UI code.
 
@@ -54,7 +54,7 @@ The same state is passed to preview components and to `exportLocalMp4`. This is 
 
 ### Export
 
-`exportLocalMp4` loads the local object URL into an off-DOM video element, seeks it frame-by-frame, draws a Canvas frame for the chosen layout and text overlays, encodes H.264 with WebCodecs, and muxes an MP4 in memory. It reports progress, accepts cancellation, and returns a `Blob` for browser download.
+`exportLocalMp4` loads the local object URL into an off-DOM video element, seeks it frame-by-frame, draws a Canvas frame for the chosen layout, video colour adjustments, and text overlays, encodes H.264 with WebCodecs, and muxes an MP4 in memory. It reports progress, accepts cancellation, and returns a `Blob` for browser download.
 
 Current export is video-only: source audio is not muxed. Device and configuration support are validated locally; unsupported exports must show a clear recoverable error.
 

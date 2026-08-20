@@ -7,6 +7,7 @@ import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
 import type { PosterLayout } from "@/features/render/poster-layout";
+import { getVideoAdjustmentsFilter, type VideoAdjustments } from "@/features/render/video-adjustments";
 
 export type ExportLayoutMode = "canvas" | "focus" | "poster";
 
@@ -21,6 +22,7 @@ export interface LocalMp4ExportRequest {
   playback: PlaybackSettings;
   posterLayout: PosterLayout;
   sourceUrl: string;
+  videoAdjustments: VideoAdjustments;
 }
 
 export class ExportCancelledError extends Error {
@@ -169,19 +171,19 @@ function drawFrame(context: CanvasRenderingContext2D, video: HTMLVideoElement, r
     gradient.addColorStop(0, "#6d28d9"); gradient.addColorStop(0.5, "#c026d3"); gradient.addColorStop(1, "#fb923c");
     context.fillStyle = gradient; context.fillRect(0, 0, width, height);
     context.fillStyle = "white"; context.font = `600 ${Math.round(width * 0.07)}px sans-serif`; context.fillText(request.posterLayout.headline, width * 0.06, height * 0.12, width * 0.88);
-    drawContain(context, video, width * 0.06, height * 0.28, width * 0.88, height * 0.62);
+    drawAdjustedContain(context, video, width * 0.06, height * 0.28, width * 0.88, height * 0.62, request.videoAdjustments);
     drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
   if (request.mode === "focus") {
-    drawCover(context, video, 0, 0, width, height, request.focusLayout.panX, request.focusLayout.zoom);
+    drawAdjustedCover(context, video, 0, 0, width, height, request.focusLayout.panX, request.focusLayout.zoom, request.videoAdjustments);
     drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
     return;
   }
-  context.save(); context.filter = `blur(${request.canvasLayout.backdropBlurPixels}px)`; context.globalAlpha = request.canvasLayout.backdropOpacity;
+  context.save(); context.filter = `blur(${request.canvasLayout.backdropBlurPixels}px) ${getVideoAdjustmentsFilter(request.videoAdjustments)}`; context.globalAlpha = request.canvasLayout.backdropOpacity;
   drawCover(context, video, 0, 0, width, height, 50, 1.1); context.restore();
   context.fillStyle = `rgba(0,0,0,${request.canvasLayout.dimOpacity})`; context.fillRect(0, 0, width, height);
-  drawContain(context, video, 0, 0, width, height);
+  drawAdjustedContain(context, video, 0, 0, width, height, request.videoAdjustments);
   drawTextOverlays(context, request.overlays, getOutputElapsedSeconds(video.currentTime - request.playback.trimStartSeconds, request.playback), width, height);
 }
 
@@ -244,7 +246,19 @@ function drawContain(context: CanvasRenderingContext2D, video: HTMLVideoElement,
   context.drawImage(video, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
+function drawAdjustedContain(context: CanvasRenderingContext2D, video: HTMLVideoElement, x: number, y: number, width: number, height: number, adjustments: VideoAdjustments): void {
+  drawWithVideoAdjustments(context, adjustments, () => drawContain(context, video, x, y, width, height));
+}
+
 function drawCover(context: CanvasRenderingContext2D, video: HTMLVideoElement, x: number, y: number, width: number, height: number, panX: number, zoom: number): void {
   const scale = Math.max(width / video.videoWidth, height / video.videoHeight) * zoom; const drawWidth = video.videoWidth * scale; const drawHeight = video.videoHeight * scale;
   context.drawImage(video, x + (width - drawWidth) * (panX / 100), y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawAdjustedCover(context: CanvasRenderingContext2D, video: HTMLVideoElement, x: number, y: number, width: number, height: number, panX: number, zoom: number, adjustments: VideoAdjustments): void {
+  drawWithVideoAdjustments(context, adjustments, () => drawCover(context, video, x, y, width, height, panX, zoom));
+}
+
+function drawWithVideoAdjustments(context: CanvasRenderingContext2D, adjustments: VideoAdjustments, draw: () => void): void {
+  context.save(); context.filter = getVideoAdjustmentsFilter(adjustments); draw(); context.restore();
 }

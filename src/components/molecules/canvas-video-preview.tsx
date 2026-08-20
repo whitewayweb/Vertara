@@ -7,6 +7,7 @@ import { isTextOverlayVisible, type TextOverlay } from "@/features/project/text-
 import type { PlaybackSettings } from "@/features/project/playback-settings";
 import { getOutputElapsedSeconds } from "@/features/project/playback-settings";
 import { defaultCanvasLayout, type CanvasLayout } from "@/features/render/canvas-layout";
+import { getVideoAdjustmentsFilter, type VideoAdjustments } from "@/features/render/video-adjustments";
 
 interface CanvasVideoPreviewProps {
   canvasLayout?: CanvasLayout;
@@ -20,9 +21,10 @@ interface CanvasVideoPreviewProps {
   selectedOverlayId?: string;
   seekRequest?: { id: number; timeSeconds: number };
   sourceUrl: string;
+  videoAdjustments: VideoAdjustments;
 }
 
-export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, isPlaying, onOverlayLayoutChange, onOverlaySelect, onPlaybackTimeChange, overlays, playback, seekRequest, selectedOverlayId, sourceUrl }: CanvasVideoPreviewProps) {
+export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, className, isPlaying, onOverlayLayoutChange, onOverlaySelect, onPlaybackTimeChange, overlays, playback, seekRequest, selectedOverlayId, sourceUrl, videoAdjustments }: CanvasVideoPreviewProps) {
   const [currentTime, setCurrentTime] = useState(playback.trimStartSeconds);
 
   return (
@@ -34,7 +36,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         playback={playback}
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
-        style={{ filter: `blur(${canvasLayout.backdropBlurPixels}px)`, opacity: canvasLayout.backdropOpacity }}
+        style={{ filter: `blur(${canvasLayout.backdropBlurPixels}px) ${getVideoAdjustmentsFilter(videoAdjustments)}`, opacity: canvasLayout.backdropOpacity }}
       />
       <div aria-hidden="true" className="absolute inset-0 bg-black" style={{ opacity: canvasLayout.dimOpacity }} />
       <PlaybackVideo
@@ -44,6 +46,7 @@ export function CanvasVideoPreview({ canvasLayout = defaultCanvasLayout, classNa
         playback={playback}
         seekRequest={seekRequest}
         sourceUrl={sourceUrl}
+        style={{ filter: getVideoAdjustmentsFilter(videoAdjustments) }}
       />
       {overlays.map((overlay) => <VideoHookOverlay isSelected={overlay.id === selectedOverlayId} isVisible={isTextOverlayVisible(overlay, getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback))} key={overlay.id} onChange={(change) => onOverlayLayoutChange?.(overlay.id, change)} onSelect={() => onOverlaySelect?.(overlay.id)} overlay={overlay} />)}
     </div>

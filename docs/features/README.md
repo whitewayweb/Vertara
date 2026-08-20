@@ -20,6 +20,7 @@ This is the implementation-oriented feature reference for people and AI tools. I
 | Playback and timeline | Explicit play/pause, mute toggle, trim-bounded looping, and clickable seeking. | `features/project/playback-settings.ts`, `components/atoms/playback-video.tsx`, `components/molecules/editor-timeline.tsx` | Trim and speed affect export; audio is not yet muxed |
 | Speed | 1×–5× in 0.5× steps, with a live output-duration estimate. | [`video-speed.md`](video-speed.md) | Yes; see linked feature spec |
 | Text overlays | Add any number of independently timed text layers. Each supports editable text, foreground colour, optional transparent background, six social-friendly type styles, size, draggable in-video position, and edge-resizable width. Blank layers are not exported. | `features/project/text-overlays.ts`, `components/molecules/video-hook-overlay.tsx` | Yes |
+| Colour adjustments | Tune bounded brightness, contrast, saturation, and warmth values. | `features/render/video-adjustments.ts` | Yes, in every layout |
 | Output presets | Social-destination dimensions selected from one registry. | `features/project/output-settings.ts` | Yes |
 | Browser-only MP4 export | H.264/WebCodecs export, progress, cancellation, automatic download, and cleanup. Device capability is checked before use. | `features/export/local-mp4-exporter.ts`, `features/export/export-capabilities.ts` | This is the export implementation |
 
