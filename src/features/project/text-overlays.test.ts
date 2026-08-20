@@ -40,12 +40,14 @@ describe("text overlays", () => {
   });
 
   it("provides reusable social templates and duplicates a layer with an offset", () => {
-    expect(textOverlayTemplates.map((template) => template.label)).toEqual(["Hook", "Quote", "CTA"]);
+    expect(textOverlayTemplates.map((template) => template.label)).toEqual(["Text", "Hook", "Quote", "CTA"]);
     expect(duplicateTextOverlay(createTextOverlay("first", { horizontalPositionPercent: 50, verticalPositionPercent: 50 }), "copy")).toMatchObject({ horizontalPositionPercent: 54, id: "copy", verticalPositionPercent: 54 });
   });
 
   it("uses only supported text alignments", () => {
     expect(createTextOverlay("left", { textAlign: "left" }).textAlign).toBe("left");
     expect(createTextOverlay("invalid", { textAlign: "justify" as never }).textAlign).toBe("center");
+    expect(createTextOverlay("cta", { kind: "cta" }).kind).toBe("cta");
+    expect(createTextOverlay("invalid-kind", { kind: "unknown" as never }).kind).toBe("text");
   });
 });

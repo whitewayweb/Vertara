@@ -6,8 +6,7 @@ import {
   Pause,
   Play,
   ScanLine,
-  Copy, Redo2, Settings2, Trash2, Type, Undo2,
-  SmilePlus,
+  Redo2, Settings2, Undo2,
   Volume2,
 } from "lucide-react";
 
@@ -16,15 +15,16 @@ import { EditorColorPicker } from "@/components/atoms/editor-color-picker";
 import { EditorPreviewStage } from "@/components/molecules/editor-preview-stage";
 import { EditorTimeline } from "@/components/molecules/editor-timeline";
 import { FrameChoiceCard } from "@/components/molecules/frame-choice-card";
+import { TextLayerInspector } from "@/components/molecules/text-layer-inspector";
+import { TextLayerTimeline } from "@/components/molecules/text-layer-timeline";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
-import { createTextOverlay, duplicateTextOverlay, textAlignmentOptions, textEntranceAnimationOptions, textFontOptions, textOverlayTemplates, type TextOverlay } from "@/features/project/text-overlays";
+import { createTextOverlay, duplicateTextOverlay, type TextOverlay } from "@/features/project/text-overlays";
 import { commitEdit, createEditHistory, redoEdit, undoEdit } from "@/features/project/edit-history";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
@@ -49,40 +49,6 @@ const layoutOptions: Array<{ description: string; mode: ExportLayoutMode; title:
   { mode: "focus", title: "Fill the frame", description: "Bring the subject closer." },
   { mode: "poster", title: "Lead with a message", description: "Set the context before the video." },
 ];
-
-interface TextOverlayToolbarProps {
-  durationSeconds: number;
-  onAdd(): void;
-  onAddSticker(sticker: string): void;
-  onAddTemplate(template: Partial<TextOverlay>): void;
-  onChange(id: string, change: Partial<TextOverlay>): void;
-  onDelete(id: string): void;
-  onDuplicate(id: string): void;
-  onSelect(id: string): void;
-  overlays: TextOverlay[];
-  selected?: TextOverlay;
-}
-
-function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onAddTemplate, onChange, onDelete, onDuplicate, onSelect, overlays, selected }: TextOverlayToolbarProps) {
-  return <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#171b22]/95 p-2 shadow-lg" role="toolbar" aria-label="Text editor">
-    <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={onAdd} size="sm"><Type /> Add text</Button>
-    <div className="flex items-center gap-1" aria-label="Text templates" role="group">{textOverlayTemplates.map((template) => <Button className="h-7 px-2 text-[0.65rem]" key={template.label} onClick={() => onAddTemplate(template)} size="sm" variant="outline">{template.label}</Button>)}</div>
-    <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/20 p-1" aria-label="Add emoji sticker" role="group">{["✨", "🔥", "😍", "💯", "🎉"].map((sticker) => <Button aria-label={`Add ${sticker} sticker`} className="size-7 text-base" key={sticker} onClick={() => onAddSticker(sticker)} size="icon-sm" variant="ghost">{sticker}</Button>)}<SmilePlus aria-hidden="true" className="size-3 text-slate-500" /></div>
-    {selected ? <>
-      <Textarea aria-label="Selected text" className="min-h-8 min-w-32 flex-1 resize-none border-white/10 bg-black/20 py-1 text-white" maxLength={280} onChange={(event) => onChange(selected.id, { text: event.target.value })} placeholder="Write something" rows={1} value={selected.text} />
-      <label className="flex items-center gap-1 text-xs text-slate-400">Text <EditorColorPicker label="Text colour" onChange={(color) => onChange(selected.id, { color })} value={selected.color} /></label>
-      <label className="flex items-center gap-1 text-xs text-slate-400">Fill <EditorColorPicker label="Text background colour" onChange={(backgroundColor) => onChange(selected.id, { backgroundColor })} value={selected.backgroundColor} /></label>
-      <Select onValueChange={(value) => value && onChange(selected.id, { fontFamily: value as TextOverlay["fontFamily"] })} value={selected.fontFamily}><SelectTrigger className="h-8 w-28 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textFontOptions.map((font) => <SelectItem key={font.value} value={font.value}>{font.label}</SelectItem>)}</SelectContent></Select>
-      <Select onValueChange={(value) => value && onChange(selected.id, { entranceAnimation: value as TextOverlay["entranceAnimation"] })} value={selected.entranceAnimation}><SelectTrigger aria-label="Text entrance" className="h-8 w-24 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textEntranceAnimationOptions.map((animation) => <SelectItem key={animation.value} value={animation.value}>{animation.label}</SelectItem>)}</SelectContent></Select>
-      <Select onValueChange={(value) => value && onChange(selected.id, { textAlign: value as TextOverlay["textAlign"] })} value={selected.textAlign}><SelectTrigger aria-label="Text alignment" className="h-8 w-24 border-white/10 bg-black/20 text-xs text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{textAlignmentOptions.map((alignment) => <SelectItem key={alignment.value} value={alignment.value}>{alignment.label}</SelectItem>)}</SelectContent></Select>
-      <label className="flex items-center gap-1 text-xs text-slate-400">Size <input aria-label="Text size" className="w-16 accent-cyan-300" max="12" min="4" onChange={(event) => onChange(selected.id, { fontSizePercent: Number(event.target.value) })} step="1" type="range" value={selected.fontSizePercent} /></label>
-      <label className="flex items-center gap-1 text-xs text-slate-400">From <input aria-label="Text start time" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={durationSeconds} min="0" onChange={(event) => onChange(selected.id, { startSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.startSeconds} />s</label>
-      <label className="flex items-center gap-1 text-xs text-slate-400">For <input aria-label="Text duration" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={Math.max(0.5, durationSeconds - selected.startSeconds)} min="0.5" onChange={(event) => onChange(selected.id, { durationSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.durationSeconds} />s</label>
-      <Button aria-label="Duplicate selected text" className="text-slate-300" onClick={() => onDuplicate(selected.id)} size="icon-sm" variant="ghost"><Copy /></Button><Button aria-label="Delete selected text" className="text-slate-300 hover:bg-red-400/15 hover:text-red-200" onClick={() => onDelete(selected.id)} size="icon-sm" variant="ghost"><Trash2 /></Button>
-    </> : <p className="px-1 text-xs text-slate-400">Add a layer, then edit it here or drag it in the preview.</p>}
-    {overlays.length > 0 ? <div className="flex w-full gap-1 overflow-x-auto border-t border-white/10 pt-2" aria-label="Text layers" role="list">{overlays.map((overlay, index) => <Button aria-label={`Select layer ${index + 1}`} className={cn("h-7 shrink-0 max-w-32 justify-start truncate px-2 text-xs", overlay.id === selected?.id && "bg-cyan-300/15 text-cyan-100")} key={overlay.id} onClick={() => onSelect(overlay.id)} role="listitem" size="sm" variant="ghost">{overlay.text.trim() || `Text ${index + 1}`}</Button>)}</div> : null}
-  </div>;
-}
 
 export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditorProps) {
   const [activeSection, setActiveSection] = useState<InspectorSection>("frame");
@@ -221,17 +187,20 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-auto p-6 sm:p-8">
-            {composerMode === "frame" ? <section aria-label="Choose a visual treatment" className="w-full max-w-3xl"><p className="mb-2 text-sm font-medium text-slate-200">Choose by seeing</p><div className="grid grid-cols-3 gap-3">{layoutOptions.map((option) => <FrameChoiceCard description={option.description} key={option.mode} onSelect={() => selectLayout(option.mode)} selected={mode === option.mode} title={option.title}><EditorPreviewStage canvasLayout={canvasLayout} className="size-full" focusLayout={focusLayout} isPlaying={isPlaying && mode === option.mode} mode={option.mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={(timeSeconds) => { if (mode === option.mode) setCurrentTime(timeSeconds); }} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides && mode === option.mode} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} /></FrameChoiceCard>)}</div></section> : <><TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onAddTemplate={(template) => addOverlay(template)} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} /><EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={setCurrentTime} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} /></>}
+            {composerMode === "frame" ? <section aria-label="Choose a visual treatment" className="w-full max-w-3xl"><p className="mb-2 text-sm font-medium text-slate-200">Choose by seeing</p><div className="grid grid-cols-3 gap-3">{layoutOptions.map((option) => <FrameChoiceCard description={option.description} key={option.mode} onSelect={() => selectLayout(option.mode)} selected={mode === option.mode} title={option.title}><EditorPreviewStage canvasLayout={canvasLayout} className="size-full" focusLayout={focusLayout} isPlaying={isPlaying && mode === option.mode} mode={option.mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={(timeSeconds) => { if (mode === option.mode) setCurrentTime(timeSeconds); }} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides && mode === option.mode} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} /></FrameChoiceCard>)}</div></section> : <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(62vh,42rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={setCurrentTime} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />}
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
             <span className="font-mono text-sm text-cyan-300">{formatTime(currentTime)} <span className="text-slate-500">/ {formatTime(playback.trimEndSeconds)}</span></span>
             <Button aria-label="Toggle preview sound" onClick={() => updatePlayback({ muted: !playback.muted })} size="icon" variant="ghost"><Volume2 className={cn(playback.muted && "opacity-40")} /></Button>
           </div>
+          {composerMode === "text" ? <TextLayerTimeline onSelect={setSelectedOverlayId} overlays={overlays} selectedOverlayId={selectedOverlayId} totalSeconds={getExportDurationSeconds(playback)} /> : null}
           <EditorTimeline currentTime={currentTime} endSeconds={playback.trimEndSeconds} onSeek={seekTo} startSeconds={playback.trimStartSeconds} totalSeconds={durationSeconds} />
         </main>
 
         <aside className="min-h-0 overflow-y-auto border-l border-white/10 bg-[#12151a]">
+          {composerMode === "text" ? <TextLayerInspector durationSeconds={getExportDurationSeconds(playback)} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, kind: "sticker", text, widthPercent: 24 })} onAddTemplate={addOverlay} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} /> : null}
+          {composerMode === "frame" ?
           <Accordion className="px-5" onValueChange={(value) => setActiveSection((value[0] ?? "frame") as InspectorSection)} value={[activeSection]}>
             <AccordionItem value="frame">
               <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Frame &amp; focus</AccordionTrigger>
@@ -251,6 +220,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
               <AccordionContent className="space-y-3 pb-5"><Select onValueChange={(value) => value && setPreset(value)} value={preset}><SelectTrigger className="h-11 w-full border-white/10 bg-black/20 text-left text-white"><SelectValue /></SelectTrigger><SelectContent className="max-h-72 min-w-[22rem] bg-[#1a1e25] text-slate-100">{Object.values(outputPresets).map((option) => <SelectItem className="py-2.5" key={option.preset} value={option.preset}>{option.destination} · {option.label}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">Exports run in this browser and remain on this device.</p>{exportError ? <p className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-xs text-red-200">{exportError}</p> : null}</AccordionContent>
             </AccordionItem>
           </Accordion>
+          : null}
         </aside>
       </div>
     </section>

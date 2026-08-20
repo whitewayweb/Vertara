@@ -28,7 +28,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 | --- | --- | --- |
 | Routes | Route shell and entry points | `src/app/` |
 | Organisms | Editor state orchestration and import-to-editor transition | `components/organisms/import-panel.tsx`, `components/organisms/layout-editor.tsx` |
-| Molecules | Preview-stage composition, visual layout-choice cards, layout preview variants, timeline, drag/drop UI | `components/molecules/` |
+| Molecules | Preview-stage composition, visual layout-choice cards, contextual text-layer inspector, text timing lane, layout preview variants, timeline, drag/drop UI | `components/molecules/` |
 | Atoms | Single-purpose browser-video and range controls | `components/atoms/` |
 | Project features | Validated edit-state contracts: playback, text overlays, and output preset registry | `features/project/` |
 | Render features | Bounded Canvas/Focus/Poster layout configuration | `features/render/` |
@@ -41,7 +41,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 
 - `PlaybackSettings`: trim start/end, mute, and speed. Always construct updates with `createPlaybackSettings()`.
 - `CanvasLayout`, `FocusLayout`, `PosterLayout`, and `VideoAdjustments`: layout-specific state. Use their feature constructors where provided to maintain bounds.
-- `TextOverlay[]`: user-authored text layers, each with bounded styling, entrance timing, in-frame drag coordinates, and text-block width. Use `createTextOverlay()` to maintain valid values.
+- `TextOverlay[]`: user-authored text layers, each with a semantic kind (`text`, `hook`, `quote`, `cta`, or `sticker`), bounded styling, entrance timing, in-frame drag coordinates, and text-block width. Use `createTextOverlay()` to maintain valid values.
 - `OutputSettings`: selected from the `outputPresets` registry; dimensions must not be copied into UI code.
 
 The same state is passed to preview components and to `exportLocalMp4`. This is the preview/export parity boundary. New editable state must have a clear owner and be deliberately threaded through both paths when it affects output.
