@@ -195,7 +195,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [x] Add a local emoji-sticker quick picker; stickers remain standard editable text layers so their timing, positioning, animation, and export behaviour stay consistent.
 - [x] Add bounded text-layer undo/redo with keyboard shortcuts, without conflating playback/export events with edit history.
 - [x] Add toggleable output-format-aware social safe-area guides to keep text clear of common interface chrome; guides are independent of Canvas/Focus/Poster and excluded from exports.
-- [x] Add reusable Text, Hook, Quote, and CTA text templates through an Add text menu in the Edit preview header; selected layers show type-relevant controls in the existing contextual right inspector and an aligned text timing lane, alongside duplicate/delete actions.
+- [x] Add Text and Sticker actions through an Add text menu in the Edit preview header; it closes after insertion, and the selected layer shows type-relevant controls in the existing contextual right inspector and an aligned text timing lane alongside duplicate/delete actions.
 - [x] Add left, centre, and right text alignment with matching preview and MP4 export rendering.
 - [x] Add Canvas backdrop blur, intensity, and dim controls for professional full-frame framing adjustments.
 - [x] Add shared brightness, contrast, saturation, and warmth controls to all layout previews and MP4 export.

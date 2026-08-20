@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, Copy, Plus, Trash2, Type } from "lucide-react";
+import { useRef } from "react";
+import { ChevronDown, Copy, Plus, Sparkles, Trash2, Type } from "lucide-react";
 
 import { EditorColorPicker } from "@/components/atoms/editor-color-picker";
 import { Button } from "@/components/ui/button";
@@ -34,12 +35,21 @@ function KindTag({ kind }: { kind: TextOverlayKind }) {
 }
 
 export function TextLayerAddMenu({ onAddSticker, onAddTemplate }: Pick<TextLayerInspectorProps, "onAddSticker" | "onAddTemplate">) {
-  return <details className="group relative">
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const textTemplate = textOverlayTemplates.find((template) => template.kind === "text");
+  function addText() {
+    if (textTemplate) onAddTemplate(textTemplate);
+    menuRef.current?.removeAttribute("open");
+  }
+  function addSticker() {
+    onAddSticker("✨");
+    menuRef.current?.removeAttribute("open");
+  }
+  return <details className="group relative" ref={menuRef}>
     <summary className="flex h-9 cursor-pointer list-none items-center gap-1 rounded-md bg-cyan-400 px-3 text-sm font-medium text-slate-950 marker:content-none hover:bg-cyan-300"><Plus className="size-4" /> Add text <ChevronDown className="size-3 transition-transform group-open:rotate-180" /></summary>
-    <div className="absolute left-0 top-11 z-30 w-64 rounded-xl border border-white/15 bg-[#1b2028] p-2 shadow-2xl shadow-black/50">
-      <p className="px-2 pb-1 pt-0.5 text-xs font-medium text-slate-400">Add a layer</p>
-      {textOverlayTemplates.map((template) => <Button className="h-auto w-full justify-between px-2 py-2 text-left hover:bg-white/10" key={template.label} onClick={() => onAddTemplate(template)} variant="ghost"><span><span className="block text-sm text-white">{template.label}</span><span className="block text-xs text-slate-400">{template.text}</span></span><Plus className="size-4 text-cyan-300" /></Button>)}
-      <div className="mt-1 border-t border-white/10 pt-1"><p className="px-2 py-1 text-xs font-medium text-slate-400">Sticker</p><div className="flex gap-1 px-1">{["✨", "🔥", "😍", "💯", "🎉"].map((sticker) => <Button aria-label={`Add ${sticker} sticker`} className="size-8 text-base" key={sticker} onClick={() => onAddSticker(sticker)} size="icon-sm" variant="ghost">{sticker}</Button>)}</div></div>
+    <div className="absolute left-0 top-11 z-30 w-56 rounded-xl border border-white/15 bg-[#1b2028] p-2 shadow-2xl shadow-black/50">
+      <Button className="h-auto w-full justify-between px-2 py-2 text-left hover:bg-white/10" onClick={addText} variant="ghost"><span><span className="block text-sm text-white">Text</span><span className="block text-xs text-slate-400">Add your message</span></span><Type className="size-4 text-cyan-300" /></Button>
+      <Button className="h-auto w-full justify-between px-2 py-2 text-left hover:bg-white/10" onClick={addSticker} variant="ghost"><span><span className="block text-sm text-white">Sticker</span><span className="block text-xs text-slate-400">Add an emoji layer</span></span><Sparkles className="size-4 text-cyan-300" /></Button>
     </div>
   </details>;
 }
