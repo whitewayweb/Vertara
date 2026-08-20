@@ -150,7 +150,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
   function selectLayout(nextMode: ExportLayoutMode) {
     setMode(nextMode);
     setActiveSection("frame");
-    setComposerMode("frame");
+    setComposerMode("text");
   }
 
   async function handleExport() {
