@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTextOverlay, getTextOverlayFontStack, isTextOverlayVisible } from "./text-overlays";
+import { createTextOverlay, getTextOverlayEntranceAnimation, getTextOverlayEntranceProgress, getTextOverlayFontStack, isTextOverlayVisible } from "./text-overlays";
 
 describe("text overlays", () => {
   it("creates independently identified, safe text layers", () => {
@@ -26,5 +26,12 @@ describe("text overlays", () => {
     expect(isTextOverlayVisible(overlay, 0.5)).toBe(false);
     expect(isTextOverlayVisible(overlay, 1)).toBe(true);
     expect(isTextOverlayVisible(overlay, 3)).toBe(false);
+  });
+
+  it("uses bounded entrance timing shared by preview and export", () => {
+    const overlay = createTextOverlay("intro", { entranceAnimation: "slide-up", startSeconds: 3 });
+    expect(getTextOverlayEntranceAnimation(overlay.entranceAnimation)).toContain("vertara-text-slide-up");
+    expect(getTextOverlayEntranceProgress(overlay, 3.13)).toBeCloseTo(0.5);
+    expect(getTextOverlayEntranceProgress(overlay, 4)).toBe(1);
   });
 });

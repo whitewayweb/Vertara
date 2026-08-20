@@ -2,7 +2,7 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 
 import { getBrowserExportCapability } from "@/features/export/export-capabilities";
 import { getOutputElapsedSeconds, type PlaybackSettings } from "@/features/project/playback-settings";
-import { getTextOverlayFontStack, isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
+import { getTextOverlayEntranceProgress, getTextOverlayFontStack, isTextOverlayVisible, type TextOverlay } from "@/features/project/text-overlays";
 import type { OutputSettings } from "@/features/project/output-settings";
 import type { CanvasLayout } from "@/features/render/canvas-layout";
 import type { FocusLayout } from "@/features/render/focus-layout";
@@ -188,12 +188,13 @@ function drawFrame(context: CanvasRenderingContext2D, video: HTMLVideoElement, r
 }
 
 function drawTextOverlays(context: CanvasRenderingContext2D, overlays: TextOverlay[], elapsedSeconds: number, width: number, height: number): void {
-  overlays.filter((overlay) => isTextOverlayVisible(overlay, elapsedSeconds)).forEach((overlay) => drawTextOverlay(context, overlay, width, height));
+  overlays.filter((overlay) => isTextOverlayVisible(overlay, elapsedSeconds)).forEach((overlay) => drawTextOverlay(context, overlay, elapsedSeconds, width, height));
 }
 
 function drawTextOverlay(
   context: CanvasRenderingContext2D,
   overlay: TextOverlay,
+  elapsedSeconds: number,
   width: number,
   height: number,
 ): void {
@@ -213,6 +214,14 @@ function drawTextOverlay(
   const boxHeight = textHeight + padding * 2;
   const x = width * (overlay.horizontalPositionPercent / 100);
   const y = height * (overlay.verticalPositionPercent / 100) - boxHeight / 2;
+  const entranceProgress = getTextOverlayEntranceProgress(overlay, elapsedSeconds);
+  const opacity = overlay.entranceAnimation === "none" ? 1 : entranceProgress;
+  const scale = overlay.entranceAnimation === "pop" ? 0.72 + entranceProgress * 0.28 : 1;
+  const slideOffset = overlay.entranceAnimation === "slide-up" ? fontSize * 0.65 * (1 - entranceProgress) : 0;
+  context.globalAlpha = opacity;
+  context.translate(x, y + boxHeight / 2 + slideOffset);
+  context.scale(scale, scale);
+  context.translate(-x, -(y + boxHeight / 2));
   if (overlay.backgroundColor !== "transparent") {
     context.fillStyle = overlay.backgroundColor;
     context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
