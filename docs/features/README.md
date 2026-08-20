@@ -17,6 +17,7 @@ This is the implementation-oriented feature reference for people and AI tools. I
 | Canvas layout | Contained source video over a blurred, dimmed backdrop; blur, backdrop intensity, and dim are adjustable. | `features/render/canvas-layout.ts` | Yes |
 | Focus layout | Cover crop for the output frame; horizontal position and zoom are adjustable. | `features/render/focus-layout.ts` | Yes |
 | Poster layout | Gradient story card with editable headline and subline plus contained video. | `features/render/poster-layout.ts` | Yes |
+| Visual framing choices | Compare the same local footage as “Show the scene”, “Fill the frame”, or “Lead with a message” directly above the live preview. Choosing a treatment updates the existing Canvas, Focus, or Poster mode and opens its controls. | `components/molecules/frame-choice-card.tsx`, `components/organisms/layout-editor.tsx` | Uses existing layout modes; yes |
 | Playback and timeline | Explicit play/pause, mute toggle, trim-bounded looping, and clickable seeking. | `features/project/playback-settings.ts`, `components/atoms/playback-video.tsx`, `components/molecules/editor-timeline.tsx` | Trim and speed affect export; audio is not yet muxed |
 | Speed | 1×–5× in 0.5× steps, with a live output-duration estimate. | [`video-speed.md`](video-speed.md) | Yes; see linked feature spec |
 | Text overlays and emoji stickers | Add any number of independently timed text layers or local emoji stickers. Start from Hook, Quote, or CTA templates; every layer supports editable text, foreground colour, optional transparent background, six social-friendly type styles, left/centre/right alignment, fade/pop/slide entrance motion, size, draggable in-video position, edge-resizable width, duplicate, delete, and a selectable layer strip. Blank layers are not exported. | `features/project/text-overlays.ts`, `components/molecules/video-hook-overlay.tsx` | Yes |
@@ -40,6 +41,8 @@ Accepted extensions are MP4, WebM, and MOV. Extension/MIME validation is only an
 
 Layout-specific settings are pure feature state with bounded constructors. Any new visual setting needs both a preview implementation and an export-renderer implementation before it can be described as exported. Keep Canvas, Focus, and Poster selection in the `ExportLayoutMode` union.
 
+The visual framing choices are a presentation of that union, not a separate layout state. Keep their labels and treatments in the same local registry used by `LayoutEditor`; the inspector should only expose settings for the selected mode.
+
 ### Output presets
 
 Add or change destinations only through `outputPresets`; do not duplicate dimensions in UI components or the exporter. The current registry is product metadata, not a claim that Vertara publishes directly to those platforms.
@@ -50,10 +53,6 @@ Add or change destinations only through `outputPresets`; do not duplicate dimens
 - WebCodecs/H.264 support varies by browser and device. Unsupported configurations must fail clearly and locally.
 - The current renderer is a fixed-rate canvas export; its exact source-frame caveat is documented in [`video-speed.md`](video-speed.md).
 - Export runs on the device and can be cancelled. Do not move this work to a server.
-
-## Not implemented despite visible editor labels
-
-The Media item is the active workspace entry. The **Layouts**, **Captions**, and **Brand** labels in the left rail are visual navigation affordances, not separate working panels. Do not infer caption generation, brand kits, multi-clip editing, or a templates marketplace from them.
 
 ## Required change checklist
 

@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AudioLines,
-  Clapperboard,
-  ImageIcon,
-  LayoutTemplate,
   Pause,
   Play,
   ScanLine,
@@ -18,6 +15,7 @@ import { EditorRangeControl } from "@/components/atoms/editor-range-control";
 import { EditorColorPicker } from "@/components/atoms/editor-color-picker";
 import { EditorPreviewStage } from "@/components/molecules/editor-preview-stage";
 import { EditorTimeline } from "@/components/molecules/editor-timeline";
+import { FrameChoiceCard } from "@/components/molecules/frame-choice-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +36,7 @@ import { formatTime } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 
 type InspectorSection = "frame" | "trim" | "export";
+type ComposerMode = "frame" | "text";
 
 interface LayoutEditorProps {
   durationSeconds: number;
@@ -46,9 +45,9 @@ interface LayoutEditorProps {
 }
 
 const layoutOptions: Array<{ description: string; mode: ExportLayoutMode; title: string }> = [
-  { mode: "canvas", title: "Canvas", description: "Keep the entire landscape frame" },
-  { mode: "focus", title: "Focus", description: "Fill the vertical frame" },
-  { mode: "poster", title: "Poster", description: "Add a branded story card" },
+  { mode: "canvas", title: "Show the scene", description: "Keep the whole moment visible." },
+  { mode: "focus", title: "Fill the frame", description: "Bring the subject closer." },
+  { mode: "poster", title: "Lead with a message", description: "Set the context before the video." },
 ];
 
 interface TextOverlayToolbarProps {
@@ -88,6 +87,7 @@ function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onAddTemplat
 export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditorProps) {
   const [activeSection, setActiveSection] = useState<InspectorSection>("frame");
   const [canvasLayout, setCanvasLayout] = useState(defaultCanvasLayout);
+  const [composerMode, setComposerMode] = useState<ComposerMode>("frame");
   const [currentTime, setCurrentTime] = useState(0);
   const [exportError, setExportError] = useState<string>();
   const [exportProgress, setExportProgress] = useState<number>();
@@ -126,6 +126,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
     const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)), ...partial });
     setOverlayHistory((history) => commitEdit(history, [...history.present, overlay]));
     setSelectedOverlayId(overlay.id);
+    setComposerMode("text");
   }
 
   function updateOverlays(update: (current: TextOverlay[]) => TextOverlay[]) {
@@ -144,6 +145,12 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
     const clampedTime = Math.min(Math.max(timeSeconds, playback.trimStartSeconds), playback.trimEndSeconds);
     setCurrentTime(clampedTime);
     setSeekRequest((request) => ({ id: request.id + 1, timeSeconds: clampedTime }));
+  }
+
+  function selectLayout(nextMode: ExportLayoutMode) {
+    setMode(nextMode);
+    setActiveSection("frame");
+    setComposerMode("frame");
   }
 
   async function handleExport() {
@@ -199,15 +206,8 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
 
       <div className="grid h-[calc(100%-4rem)] min-h-0 lg:grid-cols-[13rem_minmax(0,1fr)_25rem]">
         <aside className="min-h-0 overflow-y-auto border-r border-white/10 p-3">
-          <nav aria-label="Editor tools" className="space-y-1">
-            {[
-              [Clapperboard, "Media"], [LayoutTemplate, "Layouts"], [Type, "Text"], [ImageIcon, "Brand"],
-            ].map(([Icon, label], index) => {
-              const ToolIcon = Icon as typeof Clapperboard;
-              return <Button className={cn("w-full justify-start gap-3", index === 0 && "bg-white/10 text-white hover:bg-white/15")} key={String(label)} variant="ghost"><ToolIcon className="size-4" />{String(label)}</Button>;
-            })}
-          </nav>
-          <div className="mt-8 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm">
+          <p className="px-2 py-3 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Your footage</p>
+          <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm">
             <p className="font-medium text-cyan-100">Private workspace</p>
             <p className="mt-2 truncate text-slate-400" title={media.name}>{media.name}</p>
             <p className="mt-1 text-xs text-slate-500">{media.width} × {media.height} · {formatTime(durationSeconds)}</p>
@@ -217,11 +217,12 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
         <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-5">
             <div className="flex items-center gap-2 text-sm text-slate-400"><Settings2 className="size-4" /> Edit preview</div>
+            <div aria-label="Editing controls" className="ml-auto mr-3 flex rounded-lg border border-white/10 bg-black/20 p-0.5" role="group"><Button aria-pressed={composerMode === "frame"} className={cn("h-7 px-2 text-xs", composerMode === "frame" && "bg-white/10 text-white")} onClick={() => setComposerMode("frame")} size="sm" variant="ghost">Frame</Button><Button aria-pressed={composerMode === "text"} className={cn("h-7 px-2 text-xs", composerMode === "text" && "bg-white/10 text-white")} onClick={() => setComposerMode("text")} size="sm" variant="ghost">Text</Button></div>
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
-            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onAddTemplate={(template) => addOverlay(template)} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
-            <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-auto p-6 sm:p-8">
+            {composerMode === "frame" ? <section aria-label="Choose a visual treatment" className="w-full max-w-3xl"><p className="mb-2 text-sm font-medium text-slate-200">Choose by seeing</p><div className="grid gap-3 sm:grid-cols-3">{layoutOptions.map((option) => <FrameChoiceCard {...option} key={option.mode} onSelect={() => selectLayout(option.mode)} selected={mode === option.mode} sourceUrl={sourceUrl} />)}</div></section> : <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onAddTemplate={(template) => addOverlay(template)} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />}
+            <EditorPreviewStage canvasLayout={canvasLayout} className={cn("aspect-[9/16] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50", composerMode === "frame" ? "h-[min(42vh,30rem)]" : "h-[min(55vh,36rem)]")} focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
@@ -236,9 +237,6 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <AccordionItem value="frame">
               <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Frame &amp; focus</AccordionTrigger>
               <AccordionContent className="pb-5">
-                <div className="grid grid-cols-3 gap-2">
-                  {layoutOptions.map((option) => <Button className={cn("h-auto min-h-24 flex-col items-start justify-between whitespace-normal border border-white/10 p-3 text-left", mode === option.mode && "border-cyan-300 bg-cyan-300/10 text-cyan-100")} key={option.mode} onClick={() => setMode(option.mode)} variant="ghost"><span className="font-medium">{option.title}</span><span className="text-xs font-normal text-slate-400">{option.description}</span></Button>)}
-                </div>
                 {mode === "canvas" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Backdrop blur" max={48} suffix=" px" value={canvasLayout.backdropBlurPixels} onChange={(backdropBlurPixels) => setCanvasLayout(createCanvasLayout(backdropBlurPixels, canvasLayout.backdropOpacity, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop intensity" suffix="%" value={canvasLayout.backdropOpacity * 100} onChange={(backdropOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, backdropOpacity / 100, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop dim" max={80} suffix="%" value={canvasLayout.dimOpacity * 100} onChange={(dimOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, canvasLayout.backdropOpacity, dimOpacity / 100))} /></div> : null}
                 {mode === "focus" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Position" suffix="%" value={focusLayout.panX} onChange={(panX) => setFocusLayout(createFocusLayout(panX, focusLayout.zoom))} /><EditorRangeControl label="Scale" max={2} min={1} step={0.01} suffix="×" value={focusLayout.zoom} onChange={(zoom) => setFocusLayout(createFocusLayout(focusLayout.panX, zoom))} /></div> : null}
                 {mode === "poster" ? <div className="mt-5 space-y-3"><Input aria-label="Poster headline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, headline: event.target.value }))} placeholder="Headline" value={posterLayout.headline} /><Input aria-label="Poster subline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, subline: event.target.value }))} placeholder="Supporting line" value={posterLayout.subline} /></div> : null}

@@ -28,7 +28,7 @@ The selected file is represented by an object URL, not uploaded. `ImportPanel` r
 | --- | --- | --- |
 | Routes | Route shell and entry points | `src/app/` |
 | Organisms | Editor state orchestration and import-to-editor transition | `components/organisms/import-panel.tsx`, `components/organisms/layout-editor.tsx` |
-| Molecules | Preview-stage composition, layout preview variants, timeline, drag/drop UI | `components/molecules/` |
+| Molecules | Preview-stage composition, visual layout-choice cards, layout preview variants, timeline, drag/drop UI | `components/molecules/` |
 | Atoms | Single-purpose browser-video and range controls | `components/atoms/` |
 | Project features | Validated edit-state contracts: playback, text overlays, and output preset registry | `features/project/` |
 | Render features | Bounded Canvas/Focus/Poster layout configuration | `features/render/` |
@@ -69,6 +69,5 @@ Current export is video-only: source audio is not muxed. Device and configuratio
 
 - No server-side media handling, cloud storage, collaboration, direct publishing, or telemetry of source media.
 - No audio muxing, FFmpeg WASM fallback, frame-accurate decoding of arbitrary variable-frame-rate media, persistence of source files, multi-clip timelines, automatic captions, or brand-kit workflow.
-- Left-rail Captions and Brand labels are not functional panels; see the feature catalogue.
 
 Update this document when the actual module boundaries, data flow, or runtime architecture changes. Do not use it as a feature backlog; that belongs in the implementation plan.
