@@ -7,6 +7,11 @@ export const textEntranceAnimationOptions = [
   { label: "Pop", value: "pop" },
   { label: "Slide up", value: "slide-up" },
 ] as const;
+export const textOverlayTemplates = [
+  { backgroundColor: "#000000cc", entranceAnimation: "pop", fontFamily: "headline", label: "Hook", text: "Stop scrolling", verticalPositionPercent: 16 },
+  { backgroundColor: "transparent", entranceAnimation: "fade", fontFamily: "editorial", label: "Quote", text: "A moment worth sharing", verticalPositionPercent: 50 },
+  { backgroundColor: "#ffffff", color: "#111827", entranceAnimation: "slide-up", fontFamily: "rounded", label: "CTA", text: "Follow for more", verticalPositionPercent: 84 },
+] as const satisfies ReadonlyArray<{ label: string } & Partial<TextOverlay>>;
 export const textFontOptions = [
   { label: "Headline", value: "headline" },
   { label: "Modern", value: "modern" },
@@ -37,3 +42,4 @@ export function getTextOverlayFontStack(fontFamily: TextOverlay["fontFamily"]): 
 export function isTextOverlayVisible(overlay: TextOverlay, elapsedSeconds: number): boolean { return Boolean(overlay.text.trim()) && elapsedSeconds >= overlay.startSeconds && elapsedSeconds < overlay.startSeconds + overlay.durationSeconds; }
 export function getTextOverlayEntranceAnimation(animation: TextEntranceAnimation): string | undefined { return animation === "none" ? undefined : `vertara-text-${animation} 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both`; }
 export function getTextOverlayEntranceProgress(overlay: TextOverlay, elapsedSeconds: number): number { return clamp((elapsedSeconds - overlay.startSeconds) / 0.26, 0, 1); }
+export function duplicateTextOverlay(overlay: TextOverlay, id: string): TextOverlay { return createTextOverlay(id, { ...overlay, horizontalPositionPercent: Math.min(93, overlay.horizontalPositionPercent + 4), verticalPositionPercent: Math.min(95, overlay.verticalPositionPercent + 4) }); }

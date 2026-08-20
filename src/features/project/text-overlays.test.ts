@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTextOverlay, getTextOverlayEntranceAnimation, getTextOverlayEntranceProgress, getTextOverlayFontStack, isTextOverlayVisible } from "./text-overlays";
+import { createTextOverlay, duplicateTextOverlay, getTextOverlayEntranceAnimation, getTextOverlayEntranceProgress, getTextOverlayFontStack, isTextOverlayVisible, textOverlayTemplates } from "./text-overlays";
 
 describe("text overlays", () => {
   it("creates independently identified, safe text layers", () => {
@@ -37,5 +37,10 @@ describe("text overlays", () => {
     expect(getTextOverlayEntranceAnimation(overlay.entranceAnimation)).toContain("vertara-text-slide-up");
     expect(getTextOverlayEntranceProgress(overlay, 3.13)).toBeCloseTo(0.5);
     expect(getTextOverlayEntranceProgress(overlay, 4)).toBe(1);
+  });
+
+  it("provides reusable social templates and duplicates a layer with an offset", () => {
+    expect(textOverlayTemplates.map((template) => template.label)).toEqual(["Hook", "Quote", "CTA"]);
+    expect(duplicateTextOverlay(createTextOverlay("first", { horizontalPositionPercent: 50, verticalPositionPercent: 50 }), "copy")).toMatchObject({ horizontalPositionPercent: 54, id: "copy", verticalPositionPercent: 54 });
   });
 });

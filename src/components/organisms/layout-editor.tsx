@@ -9,7 +9,7 @@ import {
   Pause,
   Play,
   ScanLine,
-  Redo2, Settings2, Trash2, Type, Undo2,
+  Copy, Redo2, Settings2, Trash2, Type, Undo2,
   SmilePlus,
   Volume2,
 } from "lucide-react";
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
-import { createTextOverlay, textEntranceAnimationOptions, textFontOptions, type TextOverlay } from "@/features/project/text-overlays";
+import { createTextOverlay, duplicateTextOverlay, textEntranceAnimationOptions, textFontOptions, textOverlayTemplates, type TextOverlay } from "@/features/project/text-overlays";
 import { commitEdit, createEditHistory, redoEdit, undoEdit } from "@/features/project/edit-history";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
 import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
@@ -55,14 +55,19 @@ interface TextOverlayToolbarProps {
   durationSeconds: number;
   onAdd(): void;
   onAddSticker(sticker: string): void;
+  onAddTemplate(template: Partial<TextOverlay>): void;
   onChange(id: string, change: Partial<TextOverlay>): void;
   onDelete(id: string): void;
+  onDuplicate(id: string): void;
+  onSelect(id: string): void;
+  overlays: TextOverlay[];
   selected?: TextOverlay;
 }
 
-function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onChange, onDelete, selected }: TextOverlayToolbarProps) {
+function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onAddTemplate, onChange, onDelete, onDuplicate, onSelect, overlays, selected }: TextOverlayToolbarProps) {
   return <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#171b22]/95 p-2 shadow-lg" role="toolbar" aria-label="Text editor">
     <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={onAdd} size="sm"><Type /> Add text</Button>
+    <div className="flex items-center gap-1" aria-label="Text templates" role="group">{textOverlayTemplates.map((template) => <Button className="h-7 px-2 text-[0.65rem]" key={template.label} onClick={() => onAddTemplate(template)} size="sm" variant="outline">{template.label}</Button>)}</div>
     <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/20 p-1" aria-label="Add emoji sticker" role="group">{["✨", "🔥", "😍", "💯", "🎉"].map((sticker) => <Button aria-label={`Add ${sticker} sticker`} className="size-7 text-base" key={sticker} onClick={() => onAddSticker(sticker)} size="icon-sm" variant="ghost">{sticker}</Button>)}<SmilePlus aria-hidden="true" className="size-3 text-slate-500" /></div>
     {selected ? <>
       <Textarea aria-label="Selected text" className="min-h-8 min-w-32 flex-1 resize-none border-white/10 bg-black/20 py-1 text-white" maxLength={280} onChange={(event) => onChange(selected.id, { text: event.target.value })} placeholder="Write something" rows={1} value={selected.text} />
@@ -73,8 +78,9 @@ function TextOverlayToolbar({ durationSeconds, onAdd, onAddSticker, onChange, on
       <label className="flex items-center gap-1 text-xs text-slate-400">Size <input aria-label="Text size" className="w-16 accent-cyan-300" max="12" min="4" onChange={(event) => onChange(selected.id, { fontSizePercent: Number(event.target.value) })} step="1" type="range" value={selected.fontSizePercent} /></label>
       <label className="flex items-center gap-1 text-xs text-slate-400">From <input aria-label="Text start time" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={durationSeconds} min="0" onChange={(event) => onChange(selected.id, { startSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.startSeconds} />s</label>
       <label className="flex items-center gap-1 text-xs text-slate-400">For <input aria-label="Text duration" className="w-12 rounded border border-white/10 bg-black/20 px-1 py-0.5 text-white" max={Math.max(0.5, durationSeconds - selected.startSeconds)} min="0.5" onChange={(event) => onChange(selected.id, { durationSeconds: Number(event.target.value) })} step="0.5" type="number" value={selected.durationSeconds} />s</label>
-      <Button aria-label="Delete selected text" className="text-slate-300 hover:bg-red-400/15 hover:text-red-200" onClick={() => onDelete(selected.id)} size="icon-sm" variant="ghost"><Trash2 /></Button>
+      <Button aria-label="Duplicate selected text" className="text-slate-300" onClick={() => onDuplicate(selected.id)} size="icon-sm" variant="ghost"><Copy /></Button><Button aria-label="Delete selected text" className="text-slate-300 hover:bg-red-400/15 hover:text-red-200" onClick={() => onDelete(selected.id)} size="icon-sm" variant="ghost"><Trash2 /></Button>
     </> : <p className="px-1 text-xs text-slate-400">Add a layer, then edit it here or drag it in the preview.</p>}
+    {overlays.length > 0 ? <div className="flex w-full gap-1 overflow-x-auto border-t border-white/10 pt-2" aria-label="Text layers" role="list">{overlays.map((overlay, index) => <Button aria-label={`Select layer ${index + 1}`} className={cn("h-7 shrink-0 max-w-32 justify-start truncate px-2 text-xs", overlay.id === selected?.id && "bg-cyan-300/15 text-cyan-100")} key={overlay.id} onClick={() => onSelect(overlay.id)} role="listitem" size="sm" variant="ghost">{overlay.text.trim() || `Text ${index + 1}`}</Button>)}</div> : null}
   </div>;
 }
 
@@ -123,6 +129,14 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
 
   function updateOverlays(update: (current: TextOverlay[]) => TextOverlay[]) {
     setOverlayHistory((history) => commitEdit(history, update(history.present)));
+  }
+
+  function duplicateOverlay(id: string) {
+    const source = overlays.find((overlay) => overlay.id === id);
+    if (!source) return;
+    const duplicate = duplicateTextOverlay(source, `text-${Date.now()}-${overlays.length}`);
+    updateOverlays((current) => [...current, duplicate]);
+    setSelectedOverlayId(duplicate.id);
   }
 
   function seekTo(timeSeconds: number) {
@@ -205,7 +219,7 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
             <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-6 sm:p-8">
-            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
+            <TextOverlayToolbar durationSeconds={getExportDurationSeconds(playback)} onAdd={() => addOverlay()} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, text, widthPercent: 24 })} onAddTemplate={(template) => addOverlay(template)} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} />
             <EditorPreviewStage canvasLayout={canvasLayout} className="aspect-[9/16] h-[min(55vh,36rem)] min-h-80 max-h-full w-auto max-w-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={setSelectedOverlayId} onPlaybackTimeChange={setCurrentTime} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} />
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
