@@ -30,6 +30,11 @@ describe("text overlays", () => {
     expect(createTextOverlay("invalid-stroke", { strokeColor: "invalid", strokeWidthPercent: 30 })).toMatchObject({ strokeColor: "transparent", strokeWidthPercent: 12 });
   });
 
+  it("supports a bounded text-shaped outward shadow", () => {
+    expect(createTextOverlay("shadow", { shadowColor: "#1d4ed8", shadowSpreadPercent: 8 })).toMatchObject({ shadowColor: "#1d4ed8", shadowSpreadPercent: 8 });
+    expect(createTextOverlay("invalid-shadow", { shadowColor: "invalid", shadowSpreadPercent: 50 })).toMatchObject({ shadowColor: "transparent", shadowSpreadPercent: 30 });
+  });
+
   it("shows a non-blank layer only inside its configured output time", () => {
     const overlay = createTextOverlay("intro", { durationSeconds: 2, startSeconds: 1, text: "Hello" });
     expect(isTextOverlayVisible(overlay, 0.5)).toBe(false);

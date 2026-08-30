@@ -227,6 +227,12 @@ function drawTextOverlay(
     context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
   }
   context.fillStyle = overlay.color;
+  if (overlay.shadowColor !== "transparent" && overlay.shadowSpreadPercent > 0) {
+    context.shadowBlur = fontSize * (overlay.shadowSpreadPercent / 100);
+    context.shadowColor = overlay.shadowColor;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+  }
   if (overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0) {
     context.lineWidth = fontSize * (overlay.strokeWidthPercent / 100);
     context.strokeStyle = overlay.strokeColor;
