@@ -227,8 +227,16 @@ function drawTextOverlay(
     context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
   }
   context.fillStyle = overlay.color;
+  if (overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0) {
+    context.lineWidth = fontSize * (overlay.strokeWidthPercent / 100);
+    context.strokeStyle = overlay.strokeColor;
+  }
   const textX = overlay.textAlign === "left" ? x - boxWidth / 2 + padding : overlay.textAlign === "right" ? x + boxWidth / 2 - padding : x;
-  lines.forEach((line, index) => context.fillText(line, textX, y + padding + index * lineHeight));
+  lines.forEach((line, index) => {
+    const textY = y + padding + index * lineHeight;
+    if (overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0) context.strokeText(line, textX, textY);
+    context.fillText(line, textX, textY);
+  });
   context.restore();
 }
 

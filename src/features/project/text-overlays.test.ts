@@ -25,6 +25,11 @@ describe("text overlays", () => {
     expect(createTextOverlay("alpha", { backgroundColor: "#11223380" }).backgroundColor).toBe("#11223380");
   });
 
+  it("supports a bounded optional text stroke", () => {
+    expect(createTextOverlay("stroke", { strokeColor: "#000000", strokeWidthPercent: 3 })).toMatchObject({ strokeColor: "#000000", strokeWidthPercent: 3 });
+    expect(createTextOverlay("invalid-stroke", { strokeColor: "invalid", strokeWidthPercent: 30 })).toMatchObject({ strokeColor: "transparent", strokeWidthPercent: 12 });
+  });
+
   it("shows a non-blank layer only inside its configured output time", () => {
     const overlay = createTextOverlay("intro", { durationSeconds: 2, startSeconds: 1, text: "Hello" });
     expect(isTextOverlayVisible(overlay, 0.5)).toBe(false);
