@@ -26,12 +26,12 @@ function toPickerValue(value: string): string {
   return value === "transparent" ? "#00000000" : value;
 }
 
-function toStoredValue(value: string): string {
-  return value.endsWith("00") ? "transparent" : value;
+export function toStoredColorValue(value: string): string {
+  return /^#[\da-f]{6}00$/i.test(value) ? "transparent" : value;
 }
 
 export function EditorColorPicker({ label, onChange, value }: EditorColorPickerProps) {
-  return <ColorPicker onChange={(color) => onChange(toStoredValue(color.toString("hexa").toLowerCase()))} value={parseColor(toPickerValue(value))}>
+  return <ColorPicker onChange={(color) => onChange(toStoredColorValue(color.toString("hexa").toLowerCase()))} value={parseColor(toPickerValue(value))}>
     <DialogTrigger>
       <AriaButton aria-label={label} className="group flex size-10 items-center justify-center rounded-lg border border-white/10 bg-black/20 outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-300">
         <ColorSwatch className="size-6 rounded border border-white/20 shadow-inner" />
