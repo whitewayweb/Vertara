@@ -35,6 +35,11 @@ describe("text overlays", () => {
     expect(createTextOverlay("invalid-shadow", { shadowColor: "invalid", shadowSpreadPercent: 50 })).toMatchObject({ shadowColor: "transparent", shadowSpreadPercent: 30 });
   });
 
+  it("supports Instagram-style backgrounds and directional drop shadows", () => {
+    expect(createTextOverlay("styled", { backgroundStyle: "pill", dropShadowBlurPercent: 8, dropShadowColor: "#1d4ed8", dropShadowOffsetXPercent: 4, dropShadowOffsetYPercent: 6 })).toMatchObject({ backgroundStyle: "pill", dropShadowBlurPercent: 8, dropShadowColor: "#1d4ed8", dropShadowOffsetXPercent: 4, dropShadowOffsetYPercent: 6 });
+    expect(createTextOverlay("invalid-style", { backgroundStyle: "invalid" as never, dropShadowBlurPercent: 50, dropShadowColor: "invalid", dropShadowOffsetXPercent: 50, dropShadowOffsetYPercent: -50 })).toMatchObject({ backgroundStyle: "box", dropShadowBlurPercent: 30, dropShadowColor: "transparent", dropShadowOffsetXPercent: 12, dropShadowOffsetYPercent: -12 });
+  });
+
   it("shows a non-blank layer only inside its configured output time", () => {
     const overlay = createTextOverlay("intro", { durationSeconds: 2, startSeconds: 1, text: "Hello" });
     expect(isTextOverlayVisible(overlay, 0.5)).toBe(false);

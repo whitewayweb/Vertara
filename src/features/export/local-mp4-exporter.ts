@@ -222,28 +222,51 @@ function drawTextOverlay(
   context.translate(x, y + boxHeight / 2 + slideOffset);
   context.scale(scale, scale);
   context.translate(-x, -(y + boxHeight / 2));
-  if (overlay.backgroundColor !== "transparent") {
+  const textX = overlay.textAlign === "left" ? x - boxWidth / 2 + padding : overlay.textAlign === "right" ? x + boxWidth / 2 - padding : x;
+  if (overlay.backgroundColor !== "transparent" && overlay.backgroundStyle !== "none") {
     context.fillStyle = overlay.backgroundColor;
-    context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
+    if (overlay.backgroundStyle === "highlight") {
+      lines.forEach((line, index) => {
+        const lineWidth = context.measureText(line).width;
+        const lineX = overlay.textAlign === "left" ? textX : overlay.textAlign === "right" ? textX - lineWidth : textX - lineWidth / 2;
+        fillRoundedRect(context, lineX - padding * 0.35, y + padding + index * lineHeight - padding * 0.12, lineWidth + padding * 0.7, lineHeight, padding * 0.4);
+      });
+    } else if (overlay.backgroundStyle === "pill") {
+      fillRoundedRect(context, x - boxWidth / 2, y, boxWidth, boxHeight, boxHeight / 2);
+    } else {
+      context.fillRect(x - boxWidth / 2, y, boxWidth, boxHeight);
+    }
   }
+  const hasStroke = overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0;
+  const drawLines = () => lines.forEach((line, index) => {
+    const textY = y + padding + index * lineHeight;
+    if (hasStroke) context.strokeText(line, textX, textY);
+    context.fillText(line, textX, textY);
+  });
   context.fillStyle = overlay.color;
-  if (overlay.shadowColor !== "transparent" && overlay.shadowSpreadPercent > 0) {
-    context.shadowBlur = fontSize * (overlay.shadowSpreadPercent / 100);
-    context.shadowColor = overlay.shadowColor;
-    context.shadowOffsetX = 0;
-    context.shadowOffsetY = 0;
-  }
-  if (overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0) {
+  if (hasStroke) {
     context.lineWidth = fontSize * (overlay.strokeWidthPercent / 100);
     context.strokeStyle = overlay.strokeColor;
   }
-  const textX = overlay.textAlign === "left" ? x - boxWidth / 2 + padding : overlay.textAlign === "right" ? x + boxWidth / 2 - padding : x;
-  lines.forEach((line, index) => {
-    const textY = y + padding + index * lineHeight;
-    if (overlay.strokeColor !== "transparent" && overlay.strokeWidthPercent > 0) context.strokeText(line, textX, textY);
-    context.fillText(line, textX, textY);
-  });
+  const drawShadow = (color: string, blur: number, offsetX: number, offsetY: number) => {
+    context.save();
+    context.shadowBlur = blur;
+    context.shadowColor = color;
+    context.shadowOffsetX = offsetX;
+    context.shadowOffsetY = offsetY;
+    drawLines();
+    context.restore();
+  };
+  if (overlay.shadowColor !== "transparent" && overlay.shadowSpreadPercent > 0) drawShadow(overlay.shadowColor, fontSize * (overlay.shadowSpreadPercent / 100), 0, 0);
+  if (overlay.dropShadowColor !== "transparent" && (overlay.dropShadowBlurPercent > 0 || overlay.dropShadowOffsetXPercent !== 0 || overlay.dropShadowOffsetYPercent !== 0)) drawShadow(overlay.dropShadowColor, fontSize * (overlay.dropShadowBlurPercent / 100), fontSize * (overlay.dropShadowOffsetXPercent / 100), fontSize * (overlay.dropShadowOffsetYPercent / 100));
+  drawLines();
   context.restore();
+}
+
+function fillRoundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
+  context.beginPath();
+  context.roundRect(x, y, width, height, radius);
+  context.fill();
 }
 
 function wrapText(context: CanvasRenderingContext2D, text: string, font: string, maxWidth: number): string[] {
