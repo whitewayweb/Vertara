@@ -1,37 +1,15 @@
 import { Button } from "@/components/ui/button";
+import { productFeatures } from "@/lib/product-features";
 import {
   ArrowRight,
   Download,
-  Frame,
   LockKeyhole,
-  Sparkles,
 } from "lucide-react";
 
-const editingBenefits = [
-  {
-    icon: Frame,
-    title: "Frame every format",
-    description:
-      "Turn one landscape video into a portrait, square, or social-ready edit without losing the important part.",
-  },
-  {
-    icon: Sparkles,
-    title: "Make it feel intentional",
-    description:
-      "Choose a focus crop, a blurred canvas, or a clean poster layout, then adjust the details yourself.",
-  },
-  {
-    icon: LockKeyhole,
-    title: "Keep footage private",
-    description:
-      "Your source video is edited on this device. Vertara does not upload it to a server.",
-  },
-];
-
 const steps = [
-  "Choose a video from your device.",
-  "Trim it and choose the framing that works.",
-  "Sign in only when you are ready to download.",
+  { title: "Add your video", description: "Pick a video from your device. It is never uploaded." },
+  { title: "Follow the steps", description: "The editor walks you through framing, clean up, captions, and text. Skip anything you don't need." },
+  { title: "Download it", description: "Export for any platform. No account and no watermark." },
 ];
 
 export default function HomePage() {
@@ -51,15 +29,15 @@ export default function HomePage() {
         <section className="grid items-center gap-12 py-20 lg:grid-cols-[1.08fr_0.92fr] lg:py-28">
           <div className="max-w-2xl">
             <p className="mb-5 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-              A simpler way to reframe video
+              A free, private video editor for creators
             </p>
             <h1 className="text-5xl font-semibold tracking-[-0.055em] text-balance sm:text-6xl lg:text-7xl">
               Your video, ready for its next frame.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground sm:text-xl">
-              Vertara turns the footage you already have into polished vertical,
-              square, and landscape edits—without making you learn a complicated
-              editor.
+              Add captions, cut the pauses, clean up your sound, and export for
+              every platform. It all happens in your browser, so you don&apos;t need
+              to learn a complicated editor.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <form action="/editor">
@@ -70,7 +48,7 @@ export default function HomePage() {
               </form>
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <LockKeyhole aria-hidden="true" className="size-4" />
-                No account needed to start
+                Free, with no account. Your video stays on your device.
               </p>
             </div>
           </div>
@@ -106,18 +84,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="border-y border-border py-16 sm:py-20">
-          <p className="max-w-xl text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Made for the edit before you post
-          </p>
-          <div className="mt-8 grid gap-8 md:grid-cols-3">
-            {editingBenefits.map(({ icon: Icon, title, description }) => (
+        <section className="border-y border-border py-16 sm:py-20" id="features">
+          <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            Everything you need for the edit before you post
+          </h2>
+          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {productFeatures.map(({ icon: Icon, title, description }) => (
               <article key={title}>
                 <div className="grid size-10 place-items-center rounded-xl bg-muted">
                   <Icon aria-hidden="true" className="size-5" />
                 </div>
-                <h2 className="mt-5 text-lg font-semibold tracking-tight">{title}</h2>
-                <p className="mt-2 leading-7 text-muted-foreground">{description}</p>
+                <h3 className="mt-4 text-lg font-semibold tracking-tight">{title}</h3>
+                <p className="mt-1.5 leading-7 text-muted-foreground">{description}</p>
               </article>
             ))}
           </div>
@@ -129,14 +107,15 @@ export default function HomePage() {
               How it works
             </p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Start free. Download when you are ready.
+              Three steps from raw clip to ready to post.
             </h2>
           </div>
           <ol className="grid gap-4 sm:grid-cols-3">
             {steps.map((step, index) => (
-              <li className="rounded-2xl border border-border bg-card p-5" key={step}>
+              <li className="rounded-2xl border border-border bg-card p-5" key={step.title}>
                 <span className="text-sm font-medium text-muted-foreground">0{index + 1}</span>
-                <p className="mt-8 font-medium leading-6">{step}</p>
+                <p className="mt-6 font-medium leading-6">{step.title}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.description}</p>
               </li>
             ))}
           </ol>
@@ -149,7 +128,7 @@ export default function HomePage() {
                 Bring your next video into focus.
               </h2>
               <p className="mt-3 text-primary-foreground/70">
-                Edit on your device. Sign in only to download your finished video.
+                Free to use. Edit on your device and download your finished video.
               </p>
             </div>
             <form action="/editor">

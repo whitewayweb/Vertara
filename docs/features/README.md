@@ -17,15 +17,28 @@ This is the implementation-oriented feature reference for people and AI tools. I
 | Canvas layout | Contained source video over a blurred, dimmed backdrop; blur, backdrop intensity, and dim are adjustable. | `features/render/canvas-layout.ts` | Yes |
 | Focus layout | Cover crop for the output frame; horizontal position and zoom are adjustable. | `features/render/focus-layout.ts` | Yes |
 | Poster layout | Gradient story card with editable headline and subline plus contained video. | `features/render/poster-layout.ts` | Yes |
-| Visual framing choices | Compare the same local footage as three real vertical Canvas, Focus, and Poster previews. Choosing a treatment selects that existing mode and advances to the Text surface; it does not add a second duplicate preview. | `components/molecules/frame-choice-card.tsx`, `components/molecules/editor-preview-stage.tsx`, `components/organisms/layout-editor.tsx` | Uses existing layout modes; yes |
-| Playback and timeline | Explicit play/pause, mute toggle, trim-bounded looping, and clickable seeking. | `features/project/playback-settings.ts`, `components/atoms/playback-video.tsx`, `components/molecules/editor-timeline.tsx` | Trim and speed affect export; audio is not yet muxed |
+| Visual framing choices | Compare the same local footage as three real Canvas, Focus, and Poster previews in the output shape. Choosing a treatment selects that existing mode and stays on the Frame step; it does not add a second duplicate preview. | `components/molecules/frame-choice-card.tsx`, `components/molecules/editor-preview-stage.tsx`, `components/organisms/layout-editor.tsx` | Uses existing layout modes; yes |
+| Playback and timeline | Explicit play/pause, mute toggle, trim-bounded looping, clickable seeking, skipped cuts shown as dark sections. | `features/project/playback-settings.ts`, `components/atoms/playback-video.tsx`, `components/molecules/editor-timeline.tsx` | Yes, including sound |
 | Speed | 1×–5× in 0.5× steps, with a live output-duration estimate. | [`video-speed.md`](video-speed.md) | Yes; see linked feature spec |
 | Text overlays and emoji stickers | Add any number of independently timed text layers or local emoji stickers from the two-action Add menu in the Edit preview header. The menu closes after insertion; the new layer is selected on the video and the existing right sidebar opens only the controls applicable to that layer type. Every layer supports editable text, foreground colour, optional transparent background where relevant, social-friendly type styles, left/centre/right alignment where relevant, entrance motion, size, draggable in-video position, edge-resizable width, duplicate, delete, and a readable text timing lane. Blank layers are not exported. | `features/project/text-overlays.ts`, `components/molecules/text-layer-inspector.tsx`, `components/molecules/text-layer-timeline.tsx`, `components/molecules/video-hook-overlay.tsx` | Yes |
-| Text-layer history | Undo and redo text or emoji layer edits with toolbar buttons or ⌘/Ctrl+Z and ⇧⌘/Ctrl+Z outside editable fields. | `features/project/edit-history.ts` | Editor state only |
+| Edit history | Undo and redo text layers and cuts with toolbar buttons or ⌘/Ctrl+Z and ⇧⌘/Ctrl+Z outside editable fields. | `features/project/edit-history.ts` | Editor state only |
 | Social safe-area guides | Toggle an output-format-aware text-safe region while editing. Vertical output keeps the guide close to the boundary while reserving extra bottom clearance; square and landscape use a compact symmetric inset. The guide is independent of Canvas, Focus, or Poster. | `components/atoms/social-safe-area-guides.tsx` | Preview only; never exported |
 | Colour adjustments | Tune bounded brightness, contrast, saturation, and warmth values. | `features/render/video-adjustments.ts` | Yes, in every layout |
 | Output presets | Social-destination dimensions selected from one registry. | `features/project/output-settings.ts` | Yes |
-| Browser-only MP4 export | H.264/WebCodecs export, progress, cancellation, automatic download, and cleanup. Device capability is checked before use. | `features/export/local-mp4-exporter.ts`, `features/export/export-capabilities.ts` | This is the export implementation |
+| Browser-only MP4 export | H.264 and AAC/Opus WebCodecs export, progress, cancellation, automatic download, and cleanup. Device capability is checked before use. | `features/export/local-mp4-exporter.ts`, `features/export/draw-export-frame.ts`, `features/export/export-capabilities.ts` | This is the export implementation |
+| Guided editing | A numbered, optional path (Frame, Clean up, Captions, Text, Brand, Export) with a tick for used steps, a Next button, and a plain-language description on every tool. The landing and import pages share one feature list. | `components/molecules/editor-guide.tsx`, `components/atoms/tool-section.tsx`, `lib/product-features.ts` | Not applicable |
+| Remove pauses | Finds quiet gaps at three sensitivities and cuts them; restorable. | `features/audio/silence-detection.ts`, `components/molecules/cleanup-panel.tsx` | Yes |
+| Sound cleanup | Reduces rumble and background noise and evens out volume. | `features/audio/audio-processing.ts`, `features/audio/export-audio.ts`, `features/audio/preview-audio-graph.ts` | Yes; preview plays the filters only, export adds the noise gate and levelling |
+| Music | Add a local song with volume and automatic lowering under speech. | `features/audio/audio-settings.ts`, `components/atoms/music-preview.tsx` | Yes |
+| Beat cuts | Detects tempo from the music, or the video's own sound, and makes jump cuts on the beat. | `features/audio/beat-detection.ts` | Yes |
+| Auto captions | On-device Whisper transcription with word highlighting and three style presets. First use downloads about 100 MB. | `features/captions/`, `components/molecules/caption-overlay.tsx`, `components/molecules/captions-panel.tsx` | Yes |
+| Filler removal | Cuts recognised "um"/"uh" words. Whisper often omits fillers from its transcript, so this catches only what it writes down. | `features/captions/captions.ts` | Yes |
+| Edit by text | Click a transcript word to cut or restore it. | `components/molecules/captions-panel.tsx`, `features/project/clip-cuts.ts` | Yes |
+| Subtitle files | Download SRT or VTT timed to the finished video. | `features/captions/captions.ts` | File download |
+| Follow my face | MediaPipe face detection builds a smoothed crop path for Focus. Best on close-up shots; the short-range model misses small, distant faces. First use downloads about 15 MB. | `features/vision/face-tracking.ts`, `features/render/focus-track.ts` | Yes |
+| Replace background | Selfie segmentation swaps the background for blur or a colour. Edges are approximate. | `features/vision/background-compositor.ts` | Yes |
+| Brand kit | Logo, colours, font, and saved text looks, stored in this browser. | `features/brand/brand-kit.ts`, `components/molecules/brand-panel.tsx` | Logo yes; the rest applies through text and captions |
+| Multi-format export | Export the main preset plus other shapes from one edit. | `features/project/output-settings.ts`, `components/molecules/export-panel.tsx` | Yes |
 
 ## Important behaviour and extension rules
 
@@ -35,7 +48,7 @@ Accepted extensions are MP4, WebM, and MOV. Extension/MIME validation is only an
 
 ### Shared playback state
 
-`PlaybackSettings` owns trim start, trim end, mute, and speed. Validate updates through `createPlaybackSettings()` rather than writing partial values to UI state. Trim bounds are source time; the timeline therefore remains in source time even when preview runs faster.
+`PlaybackSettings` owns trim start, trim end, mute, speed, and removed ranges. Validate updates through `createPlaybackSettings()` rather than writing partial values to UI state. Trim bounds and cuts are source time; the timeline therefore remains in source time, while the player clock shows finished-video time. Text overlays are timed in finished-video time and captions in source time.
 
 ### Layouts and preview/export parity
 
@@ -43,13 +56,17 @@ Layout-specific settings are pure feature state with bounded constructors. Any n
 
 The visual framing choices are a presentation of that union, not a separate layout state. Keep their labels and treatments in the same local registry used by `LayoutEditor`; the inspector should only expose settings for the selected mode.
 
+### Explaining features
+
+Every new tool goes in a `ToolSection` with a plain-language description of what it does for the creator, and any download states its size before starting. Add user-facing capabilities to `lib/product-features.ts` so the landing and import pages stay accurate.
+
 ### Output presets
 
 Add or change destinations only through `outputPresets`; do not duplicate dimensions in UI components or the exporter. The current registry is product metadata, not a claim that Vertara publishes directly to those platforms.
 
 ### Export limitations
 
-- Video-only MP4 is implemented. Source audio is currently not muxed, even though preview mute is part of shared playback state.
+- Sound is included unless muted. An export whose sound cannot be encoded fails with a clear error instead of silently dropping it.
 - WebCodecs/H.264 support varies by browser and device. Unsupported configurations must fail clearly and locally.
 - The current renderer is a fixed-rate canvas export; its exact source-frame caveat is documented in [`video-speed.md`](video-speed.md).
 - Export runs on the device and can be cancelled. Do not move this work to a server.

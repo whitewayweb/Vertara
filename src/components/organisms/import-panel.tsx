@@ -6,6 +6,7 @@ import { VideoDropzone } from "@/components/molecules/video-dropzone";
 import { ExportCapabilityNotice } from "@/components/molecules/export-capability-notice";
 import { inspectMediaFile } from "@/features/media/inspect-media";
 import type { MediaInspectionResult } from "@/features/media/media.types";
+import { productFeatures } from "@/lib/product-features";
 
 import { LayoutEditor } from "./layout-editor";
 
@@ -44,6 +45,7 @@ export function ImportPanel() {
         <p className="mt-4 max-w-lg text-base leading-7 text-slate-400">Bring a video into a focused editing workspace. Your source media stays private on this device.</p>
         <div className="mt-8 rounded-2xl border border-white/10 bg-[#13171e] p-2 shadow-2xl shadow-black/30"><VideoDropzone disabled={isInspecting} onFileSelected={handleFileSelected} /></div>
         <div className="mt-4"><ExportCapabilityNotice /></div>
+        <div className="mt-10"><p className="text-sm font-medium text-slate-200">Once your video is in, you can:</p><ul className="mt-4 grid gap-4 sm:grid-cols-2">{productFeatures.map(({ description, icon: Icon, title }) => <li className="flex gap-3" key={title}><Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-cyan-300" /><span><span className="block text-sm font-medium text-slate-200">{title}</span><span className="mt-0.5 block text-xs leading-5 text-slate-400">{description}</span></span></li>)}</ul></div>
       </div> : null}
       {selectedFileName && !result?.ok ? (
         <p className="text-sm text-slate-400">

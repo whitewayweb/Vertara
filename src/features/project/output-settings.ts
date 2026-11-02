@@ -74,3 +74,11 @@ export const outputPresets: Record<OutputPreset, OutputSettings> = {
     preset: "linkedin-landscape", destination: "LinkedIn landscape", description: "Wide feed video", label: "1920 × 1080 · 16:9", width: 1920, height: 1080,
   },
 };
+
+/** One preset per common shape, offered as extra files in a single export. */
+export const extraExportFormats: Array<{ description: string; preset: OutputPreset; title: string }> = [
+  { preset: "tiktok", title: "Vertical (9:16)", description: "TikTok, Reels, Shorts, Stories" },
+  { preset: "instagram-feed", title: "Portrait (4:5)", description: "Instagram and LinkedIn feeds" },
+  { preset: "instagram-square", title: "Square (1:1)", description: "Feeds on most platforms" },
+  { preset: "youtube-video", title: "Landscape (16:9)", description: "YouTube and X" },
+];

@@ -1,3 +1,5 @@
+import { clamp } from "@/lib/clamp";
+
 const textFontFamilies = ["headline", "modern", "rounded", "editorial", "typewriter", "mono"] as const;
 const textEntranceAnimations = ["none", "fade", "pop", "slide-up"] as const;
 const textAlignments = ["left", "center", "right"] as const;
@@ -5,7 +7,7 @@ const textBackgroundStyles = ["none", "box", "highlight", "pill"] as const;
 const textOverlayKinds = ["text", "hook", "quote", "cta", "sticker"] as const;
 export type TextEntranceAnimation = (typeof textEntranceAnimations)[number];
 export type TextAlignment = (typeof textAlignments)[number];
-export type TextBackgroundStyle = (typeof textBackgroundStyles)[number];
+type TextBackgroundStyle = (typeof textBackgroundStyles)[number];
 export type TextOverlayKind = (typeof textOverlayKinds)[number];
 export const textEntranceAnimationOptions = [
   { label: "None", value: "none" },
@@ -51,7 +53,6 @@ const fontStacks = {
   rounded: '"Arial Rounded MT Bold", "Trebuchet MS", sans-serif',
   typewriter: '"American Typewriter", "Courier New", serif',
 } as const;
-const clamp = (value: number, minimum: number, maximum: number) => Math.min(Math.max(value, minimum), maximum);
 const color = (value: string, fallback: string) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) ? value : fallback;
 const backgroundColor = (value: string) => value === "transparent" ? value : color(value, defaults.backgroundColor);
 const optionalColor = (value: string) => value === "transparent" ? value : color(value, "transparent");

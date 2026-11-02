@@ -1,42 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  AudioLines,
-  Pause,
-  Play,
-  ScanLine,
-  Redo2, Settings2, Undo2,
-  Volume2,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Pause, Play, ScanLine, Redo2, Settings2, Undo2, Volume2 } from "lucide-react";
 
-import { EditorRangeControl } from "@/components/atoms/editor-range-control";
-import { EditorColorPicker } from "@/components/atoms/editor-color-picker";
+import { MusicPreview } from "@/components/atoms/music-preview";
+import { BrandPanel } from "@/components/molecules/brand-panel";
+import { CaptionsPanel } from "@/components/molecules/captions-panel";
+import { CleanupPanel } from "@/components/molecules/cleanup-panel";
+import { EditorGuide, editorSteps, type EditorTool } from "@/components/molecules/editor-guide";
 import { EditorPreviewStage } from "@/components/molecules/editor-preview-stage";
 import { EditorTimeline } from "@/components/molecules/editor-timeline";
+import { ExportPanel, type ExportJobProgress } from "@/components/molecules/export-panel";
 import { FrameChoiceCard } from "@/components/molecules/frame-choice-card";
+import { FramePanel } from "@/components/molecules/frame-panel";
 import { TextLayerAddMenu, TextLayerInspector } from "@/components/molecules/text-layer-inspector";
 import { TextLayerTimeline } from "@/components/molecules/text-layer-timeline";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExportCancelledError, exportLocalMp4, type ExportLayoutMode } from "@/features/export/local-mp4-exporter";
+import { defaultAudioSettings, type AudioSettings } from "@/features/audio/audio-settings";
+import { prepareExportAudio } from "@/features/audio/export-audio";
+import { detectSilentRanges } from "@/features/audio/silence-detection";
+import { getMonoSamples, loadSourceAudio } from "@/features/audio/source-audio";
+import { createSavedTextStyle, defaultBrandKit, loadBrandKit, saveBrandKit, type BrandKit } from "@/features/brand/brand-kit";
+import { defaultCaptionSettings, type CaptionSettings, type TranscriptWord } from "@/features/captions/captions";
+import { ExportCancelledError, exportLocalMp4 } from "@/features/export/local-mp4-exporter";
 import type { MediaDescriptor } from "@/features/media/media.types";
-import { createTextOverlay, duplicateTextOverlay, type TextOverlay } from "@/features/project/text-overlays";
+import { replaceCuts, toggleWordCut, type ClipCut, type CutSource } from "@/features/project/clip-cuts";
 import { commitEdit, createEditHistory, redoEdit, undoEdit } from "@/features/project/edit-history";
 import { outputPresets, type OutputPreset } from "@/features/project/output-settings";
-import { createPlaybackSettings, getExportDurationSeconds, playbackSpeeds, type PlaybackSpeed } from "@/features/project/playback-settings";
-import { createCanvasLayout, defaultCanvasLayout } from "@/features/render/canvas-layout";
-import { createFocusLayout, defaultFocusLayout } from "@/features/render/focus-layout";
+import { createPlaybackSettings, getExportDurationSeconds, getOutputElapsedSeconds, type PlaybackSettings, type TimeRange } from "@/features/project/playback-settings";
+import { createTextOverlay, duplicateTextOverlay, type TextOverlay } from "@/features/project/text-overlays";
+import { defaultCanvasLayout } from "@/features/render/canvas-layout";
+import { defaultFocusLayout } from "@/features/render/focus-layout";
 import { defaultPosterLayout } from "@/features/render/poster-layout";
-import { createVideoAdjustments, defaultVideoAdjustments } from "@/features/render/video-adjustments";
+import { defaultBackgroundSettings, type ExportLayoutMode, type ProjectRenderState } from "@/features/render/project-render";
+import { defaultVideoAdjustments } from "@/features/render/video-adjustments";
+import { downloadFile } from "@/lib/download-file";
 import { formatTime } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 
-type InspectorSection = "frame" | "trim" | "export";
-type ComposerMode = "frame" | "text";
+/** Edits people expect undo to cover: text layers and every kind of cut. */
+interface ProjectEdits {
+  cuts: ClipCut[];
+  overlays: TextOverlay[];
+}
 
 interface LayoutEditorProps {
   durationSeconds: number;
@@ -50,61 +56,130 @@ const layoutOptions: Array<{ description: string; mode: ExportLayoutMode; title:
   { mode: "poster", title: "Lead with a message", description: "Set the context before the video." },
 ];
 
+const stickerTemplate: Partial<TextOverlay> = { backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, kind: "sticker", widthPercent: 24 };
+
+type VisualSettings = Pick<ProjectRenderState, "background" | "canvasLayout" | "focusLayout" | "mode" | "posterLayout" | "videoAdjustments">;
+
 export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditorProps) {
-  const [activeSection, setActiveSection] = useState<InspectorSection>("frame");
-  const [canvasLayout, setCanvasLayout] = useState(defaultCanvasLayout);
-  const [composerMode, setComposerMode] = useState<ComposerMode>("frame");
+  const [activeTool, setActiveTool] = useState<EditorTool>("frame");
+  const [audio, setAudio] = useState<AudioSettings>(defaultAudioSettings);
+  const [brandKit, setBrandKit] = useState<BrandKit>(defaultBrandKit);
+  const [captions, setCaptions] = useState<CaptionSettings>(defaultCaptionSettings);
   const [currentTime, setCurrentTime] = useState(0);
+  const [edits, setEdits] = useState(() => createEditHistory<ProjectEdits>({ cuts: [], overlays: [] }));
   const [exportError, setExportError] = useState<string>();
-  const [exportProgress, setExportProgress] = useState<number>();
-  const [focusLayout, setFocusLayout] = useState(defaultFocusLayout);
-  const [overlayHistory, setOverlayHistory] = useState(() => createEditHistory<TextOverlay[]>([]));
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string>();
+  const [exportProgress, setExportProgress] = useState<ExportJobProgress>();
+  const [extraPresets, setExtraPresets] = useState<OutputPreset[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [mode, setMode] = useState<ExportLayoutMode>("canvas");
-  const [playback, setPlayback] = useState(() => createPlaybackSettings(durationSeconds));
-  const [posterLayout, setPosterLayout] = useState(defaultPosterLayout);
-  const [videoAdjustments, setVideoAdjustments] = useState(defaultVideoAdjustments);
+  const [pauses, setPauses] = useState<TimeRange[]>([]);
+  const [playbackBase, setPlaybackBase] = useState(() => createPlaybackSettings(durationSeconds));
   const [preset, setPreset] = useState<OutputPreset>("youtube-shorts");
   const [seekRequest, setSeekRequest] = useState({ id: 0, timeSeconds: 0 });
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string>();
   const [showSafeAreaGuides, setShowSafeAreaGuides] = useState(true);
+  const [transcript, setTranscript] = useState<TranscriptWord[]>([]);
+  const [visual, setVisual] = useState<VisualSettings>({ background: defaultBackgroundSettings, canvasLayout: defaultCanvasLayout, focusLayout: defaultFocusLayout, mode: "canvas", posterLayout: defaultPosterLayout, videoAdjustments: defaultVideoAdjustments });
   const exportAbortController = useRef<AbortController | undefined>(undefined);
-  const overlays = overlayHistory.present;
+  const { cuts, overlays } = edits.present;
+
+  const playback = useMemo(() => createPlaybackSettings(durationSeconds, { ...playbackBase, removedRanges: cuts }), [cuts, durationSeconds, playbackBase]);
+  const output = outputPresets[preset];
+  const project = useMemo<ProjectRenderState>(() => ({ ...visual, brand: brandKit, captions, output, overlays, playback, transcript }), [brandKit, captions, output, overlays, playback, transcript, visual]);
+  const outputSeconds = getOutputElapsedSeconds(currentTime - playback.trimStartSeconds, playback);
+  const isExporting = exportProgress !== undefined;
+
+  const completedTools = useMemo(() => {
+    const completed = new Set<EditorTool>();
+    if (visual.mode !== "canvas" || visual.background.mode !== "off" || (visual.focusLayout.track?.length ?? 0) > 0) completed.add("frame");
+    if (cuts.some((cut) => cut.source === "silence" || cut.source === "beat") || audio.cleanup || audio.music) completed.add("cleanup");
+    if (captions.enabled) completed.add("captions");
+    if (overlays.length > 0) completed.add("text");
+    if (brandKit.logoDataUrl) completed.add("brand");
+    return completed;
+  }, [audio.cleanup, audio.music, brandKit.logoDataUrl, captions.enabled, cuts, overlays.length, visual.background.mode, visual.focusLayout.track, visual.mode]);
+
+  useEffect(() => {
+    // Browser storage is unavailable during server rendering, so the saved kit loads after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBrandKit(loadBrandKit());
+  }, []);
 
   useEffect(() => {
     function handleHistoryShortcut(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if ((!event.metaKey && !event.ctrlKey) || event.key.toLowerCase() !== "z" || target?.isContentEditable || target?.matches("input, textarea, select")) return;
       event.preventDefault();
-      setOverlayHistory((history) => event.shiftKey ? redoEdit(history) : undoEdit(history));
+      setEdits((history) => event.shiftKey ? redoEdit(history) : undoEdit(history));
     }
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
   }, []);
 
-  function updatePlayback(partial: Partial<typeof playback>) {
-    const nextPlayback = createPlaybackSettings(durationSeconds, { ...playback, ...partial });
-    setPlayback(nextPlayback);
+  useEffect(() => {
+    if (!audio.music?.duck) return;
+    let isCurrent = true;
+    void loadSourceAudio(sourceUrl).then((source) => { if (source && isCurrent) setPauses(detectSilentRanges(getMonoSamples(source), source.sampleRate, "tight")); });
+    return () => { isCurrent = false; };
+  }, [audio.music?.duck, sourceUrl]);
+
+  function updatePlayback(partial: Partial<PlaybackSettings>) {
+    const nextPlayback = createPlaybackSettings(durationSeconds, { ...playbackBase, ...partial });
+    setPlaybackBase(nextPlayback);
     setCurrentTime((time) => Math.min(Math.max(time, nextPlayback.trimStartSeconds), nextPlayback.trimEndSeconds));
   }
 
-  function addOverlay(partial: Partial<TextOverlay> = {}) {
-    const overlay = createTextOverlay(`text-${Date.now()}-${overlays.length}`, { durationSeconds: Math.min(2, getExportDurationSeconds(playback)), ...partial });
-    setOverlayHistory((history) => commitEdit(history, [...history.present, overlay]));
-    setSelectedOverlayId(overlay.id);
-    setComposerMode("text");
+  function updateOverlays(update: (current: TextOverlay[]) => TextOverlay[]) {
+    setEdits((history) => commitEdit(history, { ...history.present, overlays: update(history.present.overlays) }));
   }
 
-  function updateOverlays(update: (current: TextOverlay[]) => TextOverlay[]) {
-    setOverlayHistory((history) => commitEdit(history, update(history.present)));
+  function changeOverlay(id: string, change: Partial<TextOverlay>) {
+    updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay));
+  }
+
+  function updateCuts(update: (current: ClipCut[]) => ClipCut[]) {
+    setEdits((history) => commitEdit(history, { ...history.present, cuts: update(history.present.cuts) }));
+  }
+
+  function setCutsFrom(source: CutSource, ranges: TimeRange[]) {
+    updateCuts((current) => replaceCuts(current, source, ranges));
+  }
+
+  function createOverlayId() {
+    return `text-${Date.now()}-${overlays.length}`;
+  }
+
+  function addOverlay(partial: Partial<TextOverlay> = {}) {
+    const overlay = createTextOverlay(createOverlayId(), { color: brandKit.textColor, durationSeconds: Math.min(2, getExportDurationSeconds(playback)), ...partial });
+    updateOverlays((current) => [...current, overlay]);
+    setSelectedOverlayId(overlay.id);
   }
 
   function duplicateOverlay(id: string) {
     const source = overlays.find((overlay) => overlay.id === id);
     if (!source) return;
-    const duplicate = duplicateTextOverlay(source, `text-${Date.now()}-${overlays.length}`);
+    const duplicate = duplicateTextOverlay(source, createOverlayId());
     updateOverlays((current) => [...current, duplicate]);
     setSelectedOverlayId(duplicate.id);
+  }
+
+  function updateBrandKit(kit: BrandKit) {
+    setBrandKit(kit);
+    saveBrandKit(kit);
+  }
+
+  function applyBrandToProject() {
+    updateOverlays((current) => current.map((overlay) => overlay.kind === "sticker" ? overlay : createTextOverlay(overlay.id, { ...overlay, color: brandKit.textColor, fontFamily: brandKit.fontFamily })));
+    setCaptions((current) => ({ ...current, color: brandKit.textColor, fontFamily: brandKit.fontFamily, highlightColor: brandKit.accentColor }));
+  }
+
+  function saveTextStyle(overlay: TextOverlay) {
+    updateBrandKit({ ...brandKit, savedStyles: [...brandKit.savedStyles, createSavedTextStyle(`style-${Date.now()}`, `Look ${brandKit.savedStyles.length + 1}`, overlay)] });
+  }
+
+  function openTool(tool: EditorTool) {
+    setActiveTool(tool);
+    // Frame shows a different preview from the other steps, so it needs telling where to continue from.
+    if ((tool === "frame") !== (activeTool === "frame")) setSeekRequest((request) => ({ id: request.id + 1, timeSeconds: currentTime }));
   }
 
   function seekTo(timeSeconds: number) {
@@ -113,38 +188,26 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
     setSeekRequest((request) => ({ id: request.id + 1, timeSeconds: clampedTime }));
   }
 
-  function selectLayout(nextMode: ExportLayoutMode) {
-    setMode(nextMode);
-    setActiveSection("frame");
-    setComposerMode("text");
-  }
-
   async function handleExport() {
     setExportError(undefined);
-    setExportProgress(0);
+    const presets = [preset, ...extraPresets.filter((item) => outputPresets[item].label !== output.label)];
+    setExportProgress({ fileIndex: 1, fileProgress: 0, phase: "audio", totalFiles: presets.length });
+    setIsPlaying(false);
     const abortController = new AbortController();
     exportAbortController.current = abortController;
 
     try {
-      const file = await exportLocalMp4({
-        abortSignal: abortController.signal,
-        canvasLayout,
-        focusLayout,
-        overlays,
-        mode,
-        onProgress: setExportProgress,
-        output: outputPresets[preset],
-        playback,
-        posterLayout,
-        sourceUrl,
-        videoAdjustments,
-      });
-      const downloadUrl = URL.createObjectURL(file);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `vertara-${outputPresets[preset].preset}.mp4`;
-      link.click();
-      URL.revokeObjectURL(downloadUrl);
+      const exportAudio = await prepareExportAudio(audio, playback, sourceUrl);
+      for (const [index, item] of presets.entries()) {
+        const file = await exportLocalMp4({
+          abortSignal: abortController.signal,
+          audio: exportAudio,
+          onProgress: (fileProgress) => setExportProgress({ fileIndex: index + 1, fileProgress, phase: "video", totalFiles: presets.length }),
+          project: { ...project, output: outputPresets[item] },
+          sourceUrl,
+        });
+        downloadFile(file, `vertara-${item}.mp4`);
+      }
     } catch (error) {
       if (!(error instanceof ExportCancelledError)) {
         setExportError(error instanceof Error ? error.message : "The local export could not be completed.");
@@ -155,72 +218,64 @@ export function LayoutEditor({ durationSeconds, media, sourceUrl }: LayoutEditor
     }
   }
 
+  const stage = { cleanupAudio: audio.cleanup, currentTime, onOverlayLayoutChange: changeOverlay, onOverlaySelect: (id: string) => { setSelectedOverlayId(id); openTool("text"); }, seekRequest, selectedOverlayId, sourceUrl };
+  const previewAspectRatio = `${output.width} / ${output.height}`;
+  const activeStepIndex = editorSteps.findIndex((step) => step.id === activeTool);
+  const nextStep = editorSteps[activeStepIndex + 1];
+
   return (
     <section className="vertara-workspace dark h-[calc(100dvh-1.5rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#101216] text-slate-100 shadow-2xl shadow-black/35">
       <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="grid size-8 place-items-center rounded-lg bg-cyan-400 font-bold text-slate-950">V</div>
-          <div><p className="text-sm font-semibold tracking-[0.16em]">VERTARA</p><p className="hidden text-xs text-slate-500 sm:block">Local video workspace</p></div>
+          <div><p className="text-sm font-semibold tracking-[0.16em]">VERTARA</p><p className="hidden text-xs text-slate-500 sm:block">Free · Your video stays on this device</p></div>
         </div>
-        <div className="ml-auto mr-3 flex items-center gap-1"><Button aria-label={showSafeAreaGuides ? "Hide safe area guides" : "Show safe area guides"} onClick={() => setShowSafeAreaGuides((visible) => !visible)} size="icon-sm" title="Toggle safe area guides" variant="ghost"><ScanLine className={cn(showSafeAreaGuides && "text-cyan-300")} /></Button><Button aria-label="Undo text edit" disabled={overlayHistory.past.length === 0} onClick={() => setOverlayHistory(undoEdit)} size="icon-sm" title="Undo text edit (⌘Z)" variant="ghost"><Undo2 /></Button><Button aria-label="Redo text edit" disabled={overlayHistory.future.length === 0} onClick={() => setOverlayHistory(redoEdit)} size="icon-sm" title="Redo text edit (⇧⌘Z)" variant="ghost"><Redo2 /></Button></div>
-        {exportProgress === undefined ? (
-          <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={handleExport}>Export</Button>
+        <div className="ml-auto mr-3 flex items-center gap-1"><Button aria-label={showSafeAreaGuides ? "Hide safe area guides" : "Show safe area guides"} onClick={() => setShowSafeAreaGuides((visible) => !visible)} size="icon-sm" title="Show where platform buttons may cover your video" variant="ghost"><ScanLine className={cn(showSafeAreaGuides && "text-cyan-300")} /></Button><Button aria-label="Undo" disabled={edits.past.length === 0} onClick={() => setEdits(undoEdit)} size="icon-sm" title="Undo text and cut edits (⌘Z)" variant="ghost"><Undo2 /></Button><Button aria-label="Redo" disabled={edits.future.length === 0} onClick={() => setEdits(redoEdit)} size="icon-sm" title="Redo text and cut edits (⇧⌘Z)" variant="ghost"><Redo2 /></Button></div>
+        {isExporting ? (
+          <Button className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => exportAbortController.current?.abort()} variant="outline">Cancel export · {Math.round(exportProgress.fileProgress * 100)}%</Button>
         ) : (
-          <Button className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => exportAbortController.current?.abort()} variant="outline">Cancel export · {Math.round(exportProgress * 100)}%</Button>
+          <Button className="bg-cyan-400 text-slate-950 hover:bg-cyan-300" onClick={() => openTool("export")}>Export</Button>
         )}
       </header>
 
-      <div className="grid h-[calc(100%-4rem)] min-h-0 lg:grid-cols-[13rem_minmax(0,1fr)_25rem]">
-        <aside className="min-h-0 overflow-y-auto border-r border-white/10 p-3">
-          <p className="px-2 py-3 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Your footage</p>
-          <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm">
-            <p className="font-medium text-cyan-100">Private workspace</p>
-            <p className="mt-2 truncate text-slate-400" title={media.name}>{media.name}</p>
+      <div className="grid h-[calc(100%-4rem)] min-h-0 grid-cols-[minmax(0,1fr)] content-start overflow-y-auto lg:content-stretch lg:grid-cols-[14rem_minmax(0,1fr)_25rem] lg:grid-rows-1 lg:overflow-hidden">
+        <aside className="border-b border-white/10 p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+          <p className="hidden px-2 pb-3 pt-1 text-xs leading-5 text-slate-400 lg:block">Work from top to bottom. Every step is optional, so skip anything you don&apos;t need.</p>
+          <EditorGuide activeTool={activeTool} completedTools={completedTools} onSelect={openTool} />
+          <div className="mt-4 hidden rounded-xl border border-white/10 p-3 text-sm lg:block">
+            <p className="truncate text-slate-300" title={media.name}>{media.name}</p>
             <p className="mt-1 text-xs text-slate-500">{media.width} × {media.height} · {formatTime(durationSeconds)}</p>
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <main className="flex min-h-[85dvh] min-w-0 flex-col overflow-hidden lg:min-h-0">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-5">
-            <div className="flex items-center gap-2 text-sm text-slate-400"><Settings2 className="size-4" /> Edit preview</div>
-            <div className="ml-auto mr-3 flex items-center gap-2">{composerMode === "text" ? <TextLayerAddMenu onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, kind: "sticker", text, widthPercent: 24 })} onAddTemplate={addOverlay} /> : null}<div aria-label="Editing controls" className="flex rounded-lg border border-white/10 bg-black/20 p-0.5" role="group"><Button aria-pressed={composerMode === "frame"} className={cn("h-7 px-2 text-xs", composerMode === "frame" && "bg-white/10 text-white")} onClick={() => setComposerMode("frame")} size="sm" variant="ghost">Frame</Button><Button aria-pressed={composerMode === "text"} className={cn("h-7 px-2 text-xs", composerMode === "text" && "bg-white/10 text-white")} onClick={() => setComposerMode("text")} size="sm" variant="ghost">Text</Button></div></div>
-            <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{outputPresets[preset].label}</span>
+            <div className="flex items-center gap-2 text-sm text-slate-400"><Settings2 className="size-4" /> Preview</div>
+            <div className="ml-auto mr-3 flex items-center gap-2">{activeTool === "text" ? <TextLayerAddMenu onAddSticker={(text) => addOverlay({ ...stickerTemplate, text })} onAddTemplate={addOverlay} /> : null}</div>
+            <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-400">{output.label}</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-auto p-6 sm:p-8">
-            {composerMode === "frame" ? <section aria-label="Choose a visual treatment" className="w-full max-w-3xl"><p className="mb-2 text-sm font-medium text-slate-200">Choose by seeing</p><div className="grid grid-cols-3 gap-3">{layoutOptions.map((option) => <FrameChoiceCard description={option.description} key={option.mode} onSelect={() => selectLayout(option.mode)} selected={mode === option.mode} title={option.title}><EditorPreviewStage canvasLayout={canvasLayout} className="size-full" focusLayout={focusLayout} isPlaying={isPlaying && mode === option.mode} mode={option.mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={(timeSeconds) => { if (mode === option.mode) setCurrentTime(timeSeconds); }} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides && mode === option.mode} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} /></FrameChoiceCard>)}</div></section> : <div className="aspect-[9/16] h-[min(62vh,42rem)] min-h-80 w-auto max-w-full"><EditorPreviewStage canvasLayout={canvasLayout} className="size-full rounded-xl shadow-2xl shadow-black/50" focusLayout={focusLayout} isPlaying={isPlaying} mode={mode} onOverlayLayoutChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onOverlaySelect={(id) => { setSelectedOverlayId(id); setComposerMode("text"); }} onPlaybackTimeChange={setCurrentTime} output={outputPresets[preset]} overlays={overlays} playback={playback} posterLayout={posterLayout} seekRequest={seekRequest} selectedOverlayId={selectedOverlayId} showSafeAreaGuides={showSafeAreaGuides} sourceUrl={sourceUrl} videoAdjustments={videoAdjustments} /></div>}
+            {activeTool === "frame" ? <section aria-label="Choose a visual treatment" className="w-full max-w-3xl"><p className="mb-2 text-sm font-medium text-slate-200">Pick the look you like best</p><div className="grid grid-cols-3 gap-3">{layoutOptions.map((option) => <FrameChoiceCard aspectRatio={previewAspectRatio} description={option.description} key={option.mode} onSelect={() => setVisual((current) => ({ ...current, mode: option.mode }))} selected={visual.mode === option.mode} title={option.title}><EditorPreviewStage {...stage} className="size-full" isPlaying={isPlaying && visual.mode === option.mode} onPlaybackTimeChange={visual.mode === option.mode ? setCurrentTime : undefined} project={{ ...project, background: visual.mode === option.mode ? visual.background : defaultBackgroundSettings, mode: option.mode }} showSafeAreaGuides={showSafeAreaGuides && visual.mode === option.mode} /></FrameChoiceCard>)}</div></section> : <div className={cn("max-w-full", output.width >= output.height ? "w-full max-w-3xl" : "h-[min(62vh,42rem)] min-h-80")} style={{ aspectRatio: previewAspectRatio }}><EditorPreviewStage {...stage} className="size-full rounded-xl shadow-2xl shadow-black/50" isPlaying={isPlaying} onPlaybackTimeChange={setCurrentTime} project={project} showSafeAreaGuides={showSafeAreaGuides} /></div>}
           </div>
           <div className="flex shrink-0 items-center justify-between border-t border-white/10 px-5 py-3">
             <Button aria-label={isPlaying ? "Pause preview" : "Play preview"} onClick={() => setIsPlaying((playing) => !playing)} size="icon" variant="ghost">{isPlaying ? <Pause /> : <Play />}</Button>
-            <span className="font-mono text-sm text-cyan-300">{formatTime(currentTime)} <span className="text-slate-500">/ {formatTime(playback.trimEndSeconds)}</span></span>
+            <span className="font-mono text-sm text-cyan-300">{formatTime(outputSeconds)} <span className="text-slate-500">/ {formatTime(getExportDurationSeconds(playback))}</span></span>
             <Button aria-label="Toggle preview sound" onClick={() => updatePlayback({ muted: !playback.muted })} size="icon" variant="ghost"><Volume2 className={cn(playback.muted && "opacity-40")} /></Button>
           </div>
-          {composerMode === "text" ? <TextLayerTimeline onSelect={setSelectedOverlayId} overlays={overlays} selectedOverlayId={selectedOverlayId} totalSeconds={getExportDurationSeconds(playback)} /> : null}
-          <EditorTimeline currentTime={currentTime} endSeconds={playback.trimEndSeconds} onSeek={seekTo} startSeconds={playback.trimStartSeconds} totalSeconds={durationSeconds} />
+          {activeTool === "text" ? <TextLayerTimeline onSelect={setSelectedOverlayId} overlays={overlays} selectedOverlayId={selectedOverlayId} totalSeconds={getExportDurationSeconds(playback)} /> : null}
+          <EditorTimeline currentTime={currentTime} onSeek={seekTo} playback={playback} totalSeconds={durationSeconds} />
+          {audio.music ? <MusicPreview isPlaying={isPlaying} isSpeaking={!pauses.some((pause) => currentTime >= pause.startSeconds && currentTime < pause.endSeconds)} music={audio.music} outputSeconds={outputSeconds} /> : null}
         </main>
 
-        <aside className="min-h-0 overflow-y-auto border-l border-white/10 bg-[#12151a]">
-          {composerMode === "text" ? <TextLayerInspector durationSeconds={getExportDurationSeconds(playback)} onAddSticker={(text) => addOverlay({ backgroundColor: "transparent", entranceAnimation: "pop", fontFamily: "rounded", fontSizePercent: 12, kind: "sticker", text, widthPercent: 24 })} onAddTemplate={addOverlay} onChange={(id, change) => updateOverlays((current) => current.map((overlay) => overlay.id === id ? createTextOverlay(overlay.id, { ...overlay, ...change }) : overlay))} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSelect={setSelectedOverlayId} overlays={overlays} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} /> : null}
-          {composerMode === "frame" ?
-          <Accordion className="px-5" onValueChange={(value) => setActiveSection((value[0] ?? "frame") as InspectorSection)} value={[activeSection]}>
-            <AccordionItem value="frame">
-              <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Frame &amp; focus</AccordionTrigger>
-              <AccordionContent className="pb-5">
-                {mode === "canvas" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Backdrop blur" max={48} suffix=" px" value={canvasLayout.backdropBlurPixels} onChange={(backdropBlurPixels) => setCanvasLayout(createCanvasLayout(backdropBlurPixels, canvasLayout.backdropOpacity, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop intensity" suffix="%" value={canvasLayout.backdropOpacity * 100} onChange={(backdropOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, backdropOpacity / 100, canvasLayout.dimOpacity))} /><EditorRangeControl label="Backdrop dim" max={80} suffix="%" value={canvasLayout.dimOpacity * 100} onChange={(dimOpacity) => setCanvasLayout(createCanvasLayout(canvasLayout.backdropBlurPixels, canvasLayout.backdropOpacity, dimOpacity / 100))} /></div> : null}
-                {mode === "focus" ? <div className="mt-5 space-y-4"><EditorRangeControl label="Position" suffix="%" value={focusLayout.panX} onChange={(panX) => setFocusLayout(createFocusLayout(panX, focusLayout.zoom))} /><EditorRangeControl label="Scale" max={2} min={1} step={0.01} suffix="×" value={focusLayout.zoom} onChange={(zoom) => setFocusLayout(createFocusLayout(focusLayout.panX, zoom))} /></div> : null}
-                {mode === "poster" ? <div className="mt-5 space-y-3"><Input aria-label="Poster headline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, headline: event.target.value }))} placeholder="Headline" value={posterLayout.headline} /><Input aria-label="Poster subline" onChange={(event) => setPosterLayout((layout) => ({ ...layout, subline: event.target.value }))} placeholder="Supporting line" value={posterLayout.subline} /></div> : null}
-                <div className="mt-5 space-y-4 border-t border-white/10 pt-5"><p className="text-sm font-medium text-white">Colour adjustments</p><EditorRangeControl label="Brightness" max={150} min={50} suffix="%" value={videoAdjustments.brightness} onChange={(brightness) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, brightness }))} /><EditorRangeControl label="Contrast" max={150} min={50} suffix="%" value={videoAdjustments.contrast} onChange={(contrast) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, contrast }))} /><EditorRangeControl label="Saturation" max={200} suffix="%" value={videoAdjustments.saturate} onChange={(saturate) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, saturate }))} /><EditorRangeControl label="Warmth" max={40} min={-40} suffix="°" value={videoAdjustments.warmth} onChange={(warmth) => setVideoAdjustments(createVideoAdjustments({ ...videoAdjustments, warmth }))} /></div>
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="trim">
-              <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Trim &amp; audio</AccordionTrigger>
-              <AccordionContent className="space-y-5 pb-5"><EditorRangeControl label="Starts at" max={Math.max(0, playback.trimEndSeconds - 0.1)} suffix="" value={playback.trimStartSeconds} onChange={(trimStartSeconds) => updatePlayback({ trimStartSeconds })} /><EditorRangeControl label="Ends at" min={Math.min(durationSeconds, playback.trimStartSeconds + 0.1)} max={durationSeconds} suffix="" value={playback.trimEndSeconds} onChange={(trimEndSeconds) => updatePlayback({ trimEndSeconds })} /><div className="space-y-2"><label className="text-sm font-medium" htmlFor="playback-speed">Speed</label><Select onValueChange={(value) => value && updatePlayback({ speed: Number(value) as PlaybackSpeed })} value={String(playback.speed)}><SelectTrigger className="h-11 w-full border-white/10 bg-black/20 text-left text-white" id="playback-speed"><SelectValue /></SelectTrigger><SelectContent className="bg-[#1a1e25] text-slate-100">{playbackSpeeds.map((speed) => <SelectItem key={speed} value={String(speed)}>{speed}×</SelectItem>)}</SelectContent></Select><p className="text-xs text-slate-500">Export: {formatTime(getExportDurationSeconds(playback))} at {playback.speed}×. Faster exports preserve Vertara’s rendered frames.</p></div><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 p-3 text-sm font-medium"><Checkbox checked={playback.muted} onCheckedChange={(checked) => updatePlayback({ muted: checked === true })} /> <AudioLines className="size-4 text-slate-400" /> Mute original audio</label></AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="export">
-              <AccordionTrigger className="py-4 text-base text-white hover:no-underline">Export preset</AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-5"><Select onValueChange={(value) => value && setPreset(value)} value={preset}><SelectTrigger className="h-11 w-full border-white/10 bg-black/20 text-left text-white"><SelectValue /></SelectTrigger><SelectContent className="max-h-72 min-w-[22rem] bg-[#1a1e25] text-slate-100">{Object.values(outputPresets).map((option) => <SelectItem className="py-2.5" key={option.preset} value={option.preset}>{option.destination} · {option.label}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">Exports run in this browser and remain on this device.</p>{exportError ? <p className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-xs text-red-200">{exportError}</p> : null}</AccordionContent>
-            </AccordionItem>
-          </Accordion>
-          : null}
+        <aside className="border-t border-white/10 bg-[#12151a] p-4 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-t-0">
+          <h2 className="mb-3 text-base font-semibold text-white">{editorSteps[activeStepIndex].title}</h2>
+          {activeTool === "frame" ? <FramePanel durationSeconds={durationSeconds} onChange={(change) => setVisual((current) => ({ ...current, ...change }))} onPlaybackChange={updatePlayback} project={project} sourceUrl={sourceUrl} /> : null}
+          {activeTool === "cleanup" ? <CleanupPanel audio={audio} cuts={cuts} durationSeconds={durationSeconds} onAudioChange={setAudio} onCutsChange={setCutsFrom} onPlaybackChange={updatePlayback} playback={playback} sourceUrl={sourceUrl} /> : null}
+          {activeTool === "captions" ? <CaptionsPanel cuts={cuts} onCutFillers={(ranges) => setCutsFrom("filler", ranges)} onSettingsChange={setCaptions} onToggleWord={(word) => updateCuts((current) => toggleWordCut(current, word))} onTranscript={setTranscript} playback={playback} settings={captions} sourceUrl={sourceUrl} transcript={transcript} /> : null}
+          {activeTool === "text" ? <TextLayerInspector durationSeconds={getExportDurationSeconds(playback)} onChange={changeOverlay} onDelete={(id) => { updateOverlays((current) => current.filter((overlay) => overlay.id !== id)); setSelectedOverlayId(undefined); }} onDuplicate={duplicateOverlay} onSaveStyle={saveTextStyle} onSelect={setSelectedOverlayId} overlays={overlays} savedStyles={brandKit.savedStyles} selected={overlays.find((overlay) => overlay.id === selectedOverlayId)} /> : null}
+          {activeTool === "brand" ? <BrandPanel kit={brandKit} onApply={applyBrandToProject} onChange={updateBrandKit} overlayCount={overlays.length} /> : null}
+          {activeTool === "export" ? <ExportPanel error={exportError} extraPresets={extraPresets} onCancel={() => exportAbortController.current?.abort()} onExport={handleExport} onExtraPresetsChange={setExtraPresets} onPresetChange={setPreset} playback={playback} preset={preset} progress={exportProgress} /> : null}
+          {nextStep ? <Button className="mt-4 w-full justify-between" onClick={() => openTool(nextStep.id)} variant="outline">Next: {nextStep.title}<ArrowRight /></Button> : null}
         </aside>
       </div>
     </section>

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type PointerEvent } from "react";
 import type { CSSProperties } from "react";
 
 import { getTextOverlayEntranceAnimation, getTextOverlayFontStack, type TextOverlay } from "@/features/project/text-overlays";
+import { clamp } from "@/lib/clamp";
 import { cn } from "@/lib/utils";
 
 type TextOverlayLayoutChange = Pick<TextOverlay, "horizontalPositionPercent" | "verticalPositionPercent" | "widthPercent">;
@@ -11,7 +12,6 @@ interface VideoHookOverlayProps { className?: string; isSelected?: boolean; isVi
 const edgeMarginPercent = 1;
 const minimumWidthPercent = 20;
 const maximumWidthPercent = 86;
-const clamp = (value: number, minimum: number, maximum: number) => Math.min(Math.max(value, minimum), maximum);
 
 export function VideoHookOverlay({ className, isSelected = false, isVisible, onChange, onSelect, overlay }: VideoHookOverlayProps) {
   const blockRef = useRef<HTMLDivElement>(null); const overlayRef = useRef<HTMLDivElement>(null); const dragStateRef = useRef<DragState | undefined>(undefined);

@@ -18,7 +18,9 @@ Initial supported output presets:
 - Square: 1080 × 1080 (1:1)
 - Performance option: 720p portrait and square
 
-The primary creator journey is: select a landscape video from the local device, reframe it as a portrait video without an account, then sign in to download the resulting MP4. Vertara does not publish to, authenticate with, or upload video to YouTube. Authentication identifies the account entitled to download; source media remains on the local device and is never uploaded as part of sign-in or export.
+The primary creator journey is: select a video from the local device, follow the optional guided steps (frame, clean up, captions, text, brand), and download the resulting MP4s. Vertara is free and needs no account. It does not publish to, authenticate with, or upload video to any platform; source media remains on the local device.
+
+**Free-product constraint:** every feature must run on the creator's device with no paid API or server processing. Model files may be downloaded from public hosts, with the size stated before the download starts; media is never sent.
 
 The product should describe exports as “social-ready” and may state in plain text that vertical outputs are suitable for platforms such as YouTube Shorts. Do not include third-party platform names, logos, or lookalike branding in Vertara’s product name or visual identity.
 
@@ -37,14 +39,14 @@ The product should describe exports as “social-ready” and may state in plain
 6. Client-side MP4 export with progress, cancellation, download, and recoverable failure states.
 7. Local persistence of the current edit settings for the selected session.
 8. A factual export-readiness panel: resolution, aspect ratio, duration, and codec/container information where available.
-9. Anonymous editing up to the download step; require sign-in only when the user requests the completed export download.
+9. Anonymous editing and download, with no sign-in. (This replaces the earlier sign-in-to-download plan, which was never built.)
+10. On-device auto captions, edit by text, filler and pause removal, sound cleanup, music, beat cuts, face-following crop, background replacement, brand kit, and multi-format export. See [`docs/features/README.md`](docs/features/README.md) for behaviour and limits.
 
 ### Explicitly defer
 
-- Automatic face/subject tracking.
-- Multi-clip timeline editing, transitions, captions generated from speech, and templates marketplace.
-- Loudness normalization; offer mute and gain only in MVP.
-- Cloud storage, server-side processing, collaboration, billing, and direct publishing integrations. Authentication is limited to the download entitlement flow; it must not make source-media upload or server-side processing a prerequisite.
+- Multi-clip timeline editing, transitions, and templates marketplace.
+- Paid-API features: AI dubbing, generated B-roll, and cloud-model hook writing.
+- Cloud storage, server-side processing, collaboration, billing, authentication, and direct publishing integrations.
 - Guaranteed conversion of encrypted, DRM-protected, corrupt, or unsupported-codec media.
 
 ## Architecture direction
@@ -235,7 +237,7 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - Add browser/device support matrix and test fixtures (short 1080p MP4, WebM, audio-less input, long input requiring trim, portrait input, unsupported codec).
 - Verify cross-origin isolation in production, not only locally.
 - Add error telemetry that excludes file names, video pixels, and media metadata unless the user explicitly consents.
-- Add an authentication boundary at download: users can import, edit, preview, and prepare an export anonymously; sign-in is required only to obtain the finished download. Verify that authentication never transfers source video or identifying media metadata.
+- Keep import, editing, preview, and export available anonymously, with no sign-in anywhere in the flow.
 - Write a privacy page, limitations page, and accessible keyboard control pass.
 
 **Exit criteria:** documented device limits, reliability test results, zero unhandled export errors in test runs, and an agreed beta-support matrix.
@@ -261,6 +263,6 @@ Validate all edit values at the boundary: trim values within duration, `start < 
 - [ ] A user can create portrait and square output in each MVP layout.
 - [ ] A user can trim, pan, zoom, add layout text and an optional opening hook, mute, and adjust gain.
 - [ ] Output download is a playable MP4 at the selected dimensions and trimmed duration.
-- [ ] A user can complete all editing anonymously and is asked to sign in only after requesting download; sign-in does not upload source footage or identifying media metadata.
+- [x] A user can complete all editing and download anonymously, with no sign-in.
 - [ ] Progress, cancellation, unsupported-format, and out-of-memory guidance are clear and recoverable.
 - [ ] The app is deployable as a static Next.js experience with a verified privacy statement.

@@ -1,5 +1,10 @@
+import type { FocusKeyframe } from "@/features/render/focus-track";
+import { clamp } from "@/lib/clamp";
+
 export interface FocusLayout {
   panX: number;
+  /** When present, the crop follows the detected face instead of holding `panX`. */
+  track?: FocusKeyframe[];
   zoom: number;
 }
 
@@ -10,8 +15,8 @@ export const defaultFocusLayout: FocusLayout = {
 
 export function createFocusLayout(panX: number, zoom: number): FocusLayout {
   return {
-    panX: Math.min(Math.max(panX, 0), 100),
-    zoom: Math.min(Math.max(zoom, 1), 2),
+    panX: clamp(panX, 0, 100),
+    zoom: clamp(zoom, 1, 2),
   };
 }
 
